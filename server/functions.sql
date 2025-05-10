@@ -18,6 +18,23 @@ CREATE OR REPLACE
         SELECT {{COLUMN_NAMES}}, ST_AsMVTGeom(geom, env.env_geom, 4096, 64, true) AS geom
         FROM (
           SELECT {{COLUMN_NAMES}}, geom
+          FROM "aerialway", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type = 'area'
+            AND ("building" IS NULL OR "building" = 'no')
+            AND z >= 10
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "aeroway", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'area'
+              OR (geom_type = 'closed_way' AND "aeroway" NOT IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
+            )
+            AND ("building" IS NULL OR "building" = 'no')
+            AND z >= 10
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
           FROM "amenity", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('area', 'closed_way')
@@ -31,6 +48,7 @@ CREATE OR REPLACE
           FROM "barrier", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
+            AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
@@ -100,6 +118,7 @@ CREATE OR REPLACE
           FROM "landuse", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('area', 'closed_way')
+            AND ("building" IS NULL OR "building" = 'no')
             AND "area_3857" > env.env_area * 0.000001
             AND z >= 10
         UNION ALL
@@ -113,15 +132,22 @@ CREATE OR REPLACE
           SELECT {{COLUMN_NAMES}}, geom
           FROM "man_made", envelope env
           WHERE geom && env.env_geom
-            AND geom_type = 'area'
+            AND (
+              geom_type = 'area'
+              OR (geom_type = 'closed_way' AND "man_made" NOT IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
+            )
             AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "natural", envelope env
           WHERE geom && env.env_geom
-            AND geom_type = 'area'
+            AND (
+              geom_type = 'area'
+              OR (geom_type = 'closed_way' AND "natural" NOT IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
+            )
             AND "area_3857" > env.env_area * 0.000001
+            AND ("building" IS NULL OR "building" = 'no')
             AND "natural" NOT IN ('bay', 'coastline')
             AND (
               (z >= 0 AND ("natural" = 'water'))
@@ -139,6 +165,7 @@ CREATE OR REPLACE
           FROM "railway", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
+            AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
@@ -160,6 +187,7 @@ CREATE OR REPLACE
           FROM "waterway", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
+            AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
         )
         AS raw_data, envelope env
@@ -169,6 +197,27 @@ CREATE OR REPLACE
       SELECT ST_AsMVT(tile, 'line', 4096, 'geom') AS mvt FROM (
         SELECT {{COLUMN_NAMES}}, ST_AsMVTGeom(geom, env.env_geom, 4096, 64, true) AS geom
         FROM (
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "aerialway", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type IN ('line', 'closed_way')
+            AND z >= 13
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "aeroway", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'line'
+              OR (geom_type = 'closed_way' AND "aeroway" IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
+            )
+            AND z >= 13
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "amenity", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type = 'line'
+            AND z >= 13
+        UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "barrier", envelope env
           WHERE geom && env.env_geom
@@ -187,6 +236,30 @@ CREATE OR REPLACE
               OR (z >= 12 AND ("highway" IN ('tertiary', 'tertiary_link', 'residential')))
               OR z >= 13
             )
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "leisure", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type = 'line'
+            AND z >= 13
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "man_made", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'line'
+              OR (geom_type = 'closed_way' AND "man_made" IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
+            )
+            AND z >= 13
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "natural", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'line'
+              OR (geom_type = 'closed_way' AND "natural" IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
+            )
+            AND z >= 13
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "railway", envelope env
@@ -226,8 +299,24 @@ CREATE OR REPLACE
         SELECT {{COLUMN_NAMES}}, ST_AsMVTGeom(ST_PointOnSurface(geom), env.env_geom, 4096, 64, true) AS geom
         FROM (
           SELECT {{COLUMN_NAMES}}, geom
+          FROM "aerialway", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area')
+            AND z >= 15
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
+          FROM "aeroway", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type IN ('point', 'area')
+              OR (geom_type = 'closed_way' AND "aeroway" NOT IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
+            )            
+            AND z >= 12
+        UNION ALL
+          SELECT {{COLUMN_NAMES}}, geom
           FROM "amenity", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND ("education" IS NULL OR "education" = 'no')
             AND ("healthcare" IS NULL OR "healthcare" = 'no')
             AND z >= 12
@@ -243,27 +332,32 @@ CREATE OR REPLACE
           SELECT {{COLUMN_NAMES}}, geom
           FROM "club", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "craft", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "education", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "emergency", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "healthcare", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
@@ -275,41 +369,52 @@ CREATE OR REPLACE
           SELECT {{COLUMN_NAMES}}, geom
           FROM "historic", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "information", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 15
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "landuse", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "leisure", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 15
             AND (z >= 12 OR "leisure" NOT IN ('picnic_table'))
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "man_made", envelope env
           WHERE geom && env.env_geom
-            AND geom_type IN ('point', 'area')
+            AND (
+              geom_type IN ('point', 'area')
+              OR (geom_type = 'closed_way' AND "man_made" NOT IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
+            )            
             AND z >= 15
             AND (z >= 12 OR "man_made" NOT IN ('flagpole', 'manhole', 'utility_pole'))
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "natural", envelope env
           WHERE geom && env.env_geom
-            AND geom_type IN ('point', 'area')
+            AND (
+              geom_type IN ('point', 'area')
+              OR (geom_type = 'closed_way' AND "natural" NOT IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
+            )
             AND z >= 15
             AND (z >= 12 OR "natural" NOT IN ('tree'))
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "office", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
@@ -321,12 +426,14 @@ CREATE OR REPLACE
           SELECT {{COLUMN_NAMES}}, geom
           FROM "shop", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND ("amenity" IS NULL OR "amenity" = 'no')
             AND z >= 12
         UNION ALL
           SELECT {{COLUMN_NAMES}}, geom
           FROM "tourism", envelope env
           WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
             AND ("information" IS NULL OR "information" = 'no')
             AND z >= 12
         UNION ALL
@@ -368,8 +475,6 @@ END $do$;
 
 /*
 advertising
-aerialway
-aeroway
 attraction
 boundary
 golf

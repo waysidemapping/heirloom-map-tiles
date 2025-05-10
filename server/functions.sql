@@ -21,6 +21,7 @@ CREATE OR REPLACE
           FROM "aerialway", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
         UNION ALL
@@ -40,6 +41,7 @@ CREATE OR REPLACE
             AND geom_type IN ('area', 'closed_way')
             AND ("education" IS NULL OR "education" = 'no')
             AND ("healthcare" IS NULL OR "healthcare" = 'no')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
             AND (z >= 18 OR ("amenity" NOT IN ('parking_space')))
@@ -98,6 +100,8 @@ CREATE OR REPLACE
           FROM "highway", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
+            AND ("building" IS NULL OR "building" = 'no')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 10
         UNION ALL
           SELECT *
@@ -179,10 +183,18 @@ CREATE OR REPLACE
             AND z >= 10
         UNION ALL
           SELECT *
+          FROM "public_transport", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type IN ('area', 'closed_way')
+            AND ("building" IS NULL OR "building" = 'no')
+            AND z >= 10
+        UNION ALL
+          SELECT *
           FROM "railway", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'area'
             AND ("building" IS NULL OR "building" = 'no')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 10
         UNION ALL
           SELECT *
@@ -364,6 +376,7 @@ CREATE OR REPLACE
             AND geom_type IN ('point', 'area', 'closed_way')
             AND ("education" IS NULL OR "education" = 'no')
             AND ("healthcare" IS NULL OR "healthcare" = 'no')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 12
             AND (z >= 15 OR ("amenity" NOT IN ('bench', 'waste_basket')))
             AND (z >= 18 OR ("amenity" NOT IN ('parking_space')))
@@ -409,6 +422,7 @@ CREATE OR REPLACE
           FROM "highway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('point', 'area')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 15
         UNION ALL
           SELECT *
@@ -491,9 +505,16 @@ CREATE OR REPLACE
             AND z >= 15
         UNION ALL
           SELECT *
+          FROM "public_transport", envelope env
+          WHERE geom && env.env_geom
+            AND geom_type IN ('point', 'area', 'closed_way')
+            AND z >= 12
+        UNION ALL
+          SELECT *
           FROM "railway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('point', 'area')
+            AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 15
         UNION ALL
           SELECT *
@@ -561,5 +582,4 @@ attraction
 boundary
 golf
 playground
-public_transport
 */

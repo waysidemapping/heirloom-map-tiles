@@ -221,6 +221,7 @@ CREATE OR REPLACE
           FROM "aerialway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
@@ -230,18 +231,21 @@ CREATE OR REPLACE
               geom_type = 'line'
               OR (geom_type = 'closed_way' AND "aeroway" IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
             )
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
           FROM "amenity", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'line'
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
           FROM "barrier", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
@@ -261,6 +265,7 @@ CREATE OR REPLACE
           FROM "leisure", envelope env
           WHERE geom && env.env_geom
             AND geom_type = 'line'
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
@@ -270,6 +275,7 @@ CREATE OR REPLACE
               geom_type = 'line'
               OR (geom_type = 'closed_way' AND "man_made" IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
             )
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
@@ -279,6 +285,7 @@ CREATE OR REPLACE
               geom_type = 'line'
               OR (geom_type = 'closed_way' AND "natural" IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
             )
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
@@ -288,12 +295,14 @@ CREATE OR REPLACE
               geom_type = 'power'
               OR (geom_type = 'closed_way' AND "power" IN ('cable', 'line', 'minor_line'))
             )
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
           FROM "railway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND ("railway" NOT IN ('abandoned', 'razed', 'proposed'))
             AND (
               (z >= 4 AND ("railway" = 'rail' AND "usage" = 'main'))
@@ -306,6 +315,7 @@ CREATE OR REPLACE
           FROM "route", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND (
               (z >= 4 AND ("route" IN ('ferry')))
               OR z >= 13
@@ -318,12 +328,14 @@ CREATE OR REPLACE
               geom_type = 'telecom'
               OR (geom_type = 'closed_way' AND "telecom" IN ('line'))
             )
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 13
         UNION ALL
           SELECT *
           FROM "waterway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
+            AND ("highway" IS NULL OR "highway" = 'no')
             AND (
               (z >= 6 AND ("waterway" = 'river'))
               OR z >= 10

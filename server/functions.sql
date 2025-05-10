@@ -90,6 +90,18 @@ CREATE OR REPLACE
             AND z >= 10
         UNION ALL
           SELECT *
+          FROM "golf", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'area'
+              OR (geom_type = 'closed_way' AND "golf" NOT IN ('hole'))
+            )
+            AND ("building" IS NULL OR "building" = 'no')
+            AND ("landuse" IS NULL OR "landuse" = 'no')
+            AND ("natural" IS NULL OR "natural" = 'no')
+            AND z >= 15
+        UNION ALL
+          SELECT *
           FROM "healthcare", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('area', 'closed_way')
@@ -262,6 +274,16 @@ CREATE OR REPLACE
             AND z >= 13
         UNION ALL
           SELECT *
+          FROM "golf", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type = 'line'
+              OR (geom_type = 'closed_way' AND "golf" IN ('hole'))
+            )
+            AND ("highway" IS NULL OR "highway" = 'no')
+            AND z >= 15
+        UNION ALL
+          SELECT *
           FROM "highway", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('line', 'closed_way')
@@ -412,6 +434,15 @@ CREATE OR REPLACE
             AND geom_type IN ('point', 'area', 'closed_way')
             AND ("highway" IS NULL OR "highway" = 'no')
             AND z >= 12
+        UNION ALL
+          SELECT *
+          FROM "golf", envelope env
+          WHERE geom && env.env_geom
+            AND (
+              geom_type IN ('point', 'area')
+              OR (geom_type = 'closed_way' AND "golf" NOT IN ('hole'))
+            )
+            AND z >= 15
         UNION ALL
           SELECT *
           FROM "healthcare", envelope env
@@ -582,6 +613,5 @@ END $do$;
 advertising
 attraction
 boundary
-golf
 playground
 */

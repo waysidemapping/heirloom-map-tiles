@@ -401,7 +401,11 @@ CREATE OR REPLACE
             AND ("healthcare" IS NULL OR "healthcare" = 'no')
             AND ("public_transport" IS NULL OR "public_transport" = 'no')
             AND z >= 12
-            AND (z >= 15 OR ("amenity" NOT IN ('bench', 'waste_basket')))
+            -- small stuff that may be associated with a larger facility
+            AND (z >= 14 OR ("amenity" NOT IN ('atm', 'bbq', 'bicycle_parking', 'drinking_water', 'fountain', 'parcel_locker', 'post_box', 'public_bookcase', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_disposal')))
+            -- smaller stuff
+            AND (z >= 15 OR ("amenity" NOT IN ('bench', 'letter_box', 'lounger', 'recycling', 'waste_basket')))
+            -- micromapped stuff
             AND (z >= 18 OR ("amenity" NOT IN ('parking_space')))
         UNION ALL
           SELECT *
@@ -479,8 +483,8 @@ CREATE OR REPLACE
           FROM "leisure", envelope env
           WHERE geom && env.env_geom
             AND geom_type IN ('point', 'area', 'closed_way')
-            AND z >= 15
-            AND (z >= 12 OR "leisure" NOT IN ('picnic_table'))
+            AND z >= 12
+            AND (z >= 15 OR "leisure" NOT IN ('firepit', 'picnic_table', 'sauna'))
         UNION ALL
           SELECT *
           FROM "man_made", envelope env
@@ -489,8 +493,8 @@ CREATE OR REPLACE
               geom_type IN ('point', 'area')
               OR (geom_type = 'closed_way' AND "man_made" NOT IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
             )            
-            AND z >= 15
-            AND (z >= 12 OR "man_made" NOT IN ('flagpole', 'manhole', 'utility_pole'))
+            AND z >= 12
+            AND (z >= 15 OR "man_made" NOT IN ('flagpole', 'manhole', 'utility_pole'))
         UNION ALL
           SELECT *
           FROM "military", envelope env
@@ -506,8 +510,8 @@ CREATE OR REPLACE
               OR (geom_type = 'closed_way' AND "natural" NOT IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
             )
             AND "natural" NOT IN ('coastline')
-            AND z >= 15
-            AND (z >= 12 OR "natural" NOT IN ('rock', 'shrub', 'stone', 'termite_mound', 'tree', 'tree_stump'))
+            AND z >= 12
+            AND (z >= 15 OR "natural" NOT IN ('rock', 'shrub', 'stone', 'termite_mound', 'tree', 'tree_stump'))
         UNION ALL
           SELECT *
           FROM "office", envelope env

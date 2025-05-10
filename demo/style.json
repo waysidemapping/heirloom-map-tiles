@@ -88,7 +88,8 @@
             "type": "line",
             "filter": ["has", "railway"],
             "paint": {
-                "line-color": "Grey"
+                "line-color": "Black",
+                "line-opacity": 0.5
             }
         },
         {
@@ -98,7 +99,8 @@
             "type": "line",
             "filter": ["has", "highway"],
             "paint": {
-                "line-color": "LightCoral"
+                "line-color": "Red",
+                "line-opacity": 0.5
             }
         },
         {
@@ -119,7 +121,8 @@
             "type": "fill",
             "filter": ["has", "building"],
             "paint": {
-                "fill-color": "Red"
+                "fill-color": "Orange",
+                "fill-opacity": 0.5
             }
         },
         {
@@ -128,7 +131,8 @@
             "source-layer": "point",
             "type": "circle",
             "paint": {
-                "circle-color": "Black"
+                "circle-color": "Teal",
+                "circle-opacity": 0.5
             }
         }
     ]

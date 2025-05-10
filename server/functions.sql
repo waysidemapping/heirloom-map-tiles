@@ -312,6 +312,7 @@ CREATE OR REPLACE
               OR (geom_type = 'closed_way' AND "aeroway" NOT IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
             )            
             AND z >= 12
+            AND (z >= 15 OR ("aeroway" NOT IN ('gate', 'navigationaid', 'windsock')))
         UNION ALL
           SELECT *
           FROM "amenity", envelope env
@@ -409,7 +410,7 @@ CREATE OR REPLACE
               OR (geom_type = 'closed_way' AND "natural" NOT IN ('cliff', 'coastline', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
             )
             AND z >= 15
-            AND (z >= 12 OR "natural" NOT IN ('tree'))
+            AND (z >= 12 OR "natural" NOT IN ('rock', 'shrub', 'stone', 'termite_mound', 'tree', 'tree_stump'))
         UNION ALL
           SELECT *
           FROM "office", envelope env

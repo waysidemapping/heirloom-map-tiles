@@ -268,7 +268,7 @@ CREATE OR REPLACE
           SELECT {{COLUMN_NAMES}}, ST_AsMVTGeom(ST_PointOnSurface(geom), env.env_geom, 4096, 64, true) AS geom
           FROM "information", envelope env
           WHERE geom && env.env_geom
-            AND z >= 12
+            AND z >= 15
         UNION ALL
           SELECT {{COLUMN_NAMES}}, ST_AsMVTGeom(ST_PointOnSurface(geom), env.env_geom, 4096, 64, true) AS geom
           FROM "landuse", envelope env

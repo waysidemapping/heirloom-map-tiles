@@ -234,13 +234,6 @@ CREATE OR REPLACE
             AND ("information" IS NULL OR "information" = 'no')
             AND ("building" IS NULL OR "building" = 'no')
             AND z >= 10
-        UNION ALL
-          SELECT *
-          FROM "waterway", envelope env
-          WHERE geom && env.env_geom
-            AND geom_type = 'area'
-            AND ("building" IS NULL OR "building" = 'no')
-            AND z >= 10
         )
         AS raw_data, envelope env
         WHERE geom IS NOT NULL
@@ -580,7 +573,7 @@ CREATE OR REPLACE
           SELECT *
           FROM "waterway", envelope env
           WHERE geom && env.env_geom
-            AND geom_type IN ('point', 'area')
+            AND geom_type IN ('point')
             AND z >= 12
         )
         AS raw_data, envelope env

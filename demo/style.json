@@ -16,7 +16,7 @@
             }
         },
         {
-            "id": "landuse",
+            "id": "area",
             "source": "rustic",
             "source-layer": "area",
             "type": "fill",
@@ -28,6 +28,23 @@
                     "Black"
                 ],
                 "fill-opacity": 0.1
+            }
+        },
+        {
+            "id": "unspecified-line",
+            "source": "rustic",
+            "source-layer": "line",
+            "type": "line",
+            "filter": ["!",[
+                "any",
+                ["has", "barrier"],
+                ["has", "highway"],
+                ["has", "railway"],
+                ["has", "route"],
+                ["has", "waterway"]
+            ]],
+            "paint": {
+                "line-color": "Purple"
             }
         },
         {

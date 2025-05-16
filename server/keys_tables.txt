@@ -3,7 +3,6 @@ aerialway
 aeroway
 amenity
 area:highway
-attraction
 barrier
 boundary
 building
@@ -18,7 +17,6 @@ highway
 historic
 indoor
 information
-landcover
 landuse
 leisure
 man_made

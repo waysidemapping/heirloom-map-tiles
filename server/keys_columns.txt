@@ -1,10 +1,13 @@
 admin_level
 area
 capital
+cycleway
 expressway
+footway
 landmark
 order:strahler
 population
+residential
 usage
 service
 type

@@ -16,6 +16,16 @@
             }
         },
         {
+            "id": "ocean",
+            "source": "rustic",
+            "source-layer": "ocean",
+            "type": "fill",
+            "paint": {
+                "fill-color": "Magenta",
+                "fill-opacity": 0.5
+            }
+        },
+        {
             "id": "area",
             "source": "rustic",
             "source-layer": "area",
@@ -78,7 +88,8 @@
                 ["!", ["in", ["get", "waterway"], ["literal", ["dam", "weir"]]]]
             ],
             "paint": {
-                "line-color": "CornflowerBlue"
+                "line-color": "Blue",
+                "line-opacity": 0.5
             }
         },
         {

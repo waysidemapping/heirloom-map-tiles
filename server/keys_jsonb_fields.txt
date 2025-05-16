@@ -1,8 +1,8 @@
 access
 advertising
-aerialway
-aeroway
+allotments
 amenity
+attraction
 atv
 backcountry
 backrest
@@ -18,7 +18,7 @@ brand
 breakfast
 bridge
 bridge:name
-building
+bridge:support
 building:levels
 bus
 cabins
@@ -26,6 +26,7 @@ cables
 canoe
 caravans
 carriage
+cemetery
 changing_table
 club
 colour
@@ -54,7 +55,6 @@ fireplace
 fishing
 flood_prone
 foot
-footway
 ford
 format
 frequency
@@ -70,7 +70,6 @@ handrail
 healthcare
 height
 hgv
-highway
 hiking
 historic
 horse
@@ -86,6 +85,7 @@ inline_skates
 intermittent
 internet_access
 jetski
+junction
 kerb
 kitchen
 lamp_mount
@@ -160,6 +160,7 @@ opening_hours
 operator
 parking
 picnic_table
+piste:type
 place
 portable
 portage
@@ -169,7 +170,6 @@ protect_class
 protected_area
 protection_title
 public_transport
-railway
 ramp
 ramp:bicycle
 ramp:luggage
@@ -235,7 +235,6 @@ voltage
 washing_machine
 water
 waterbody:name
-waterway
 waterway:name
 wetland
 wheelchair

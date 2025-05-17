@@ -35,7 +35,7 @@ The following keys are supported on any geometry type (point, line, or area feat
   * `indoor=yes` is not supported as a top-level tag since it is assumed to be an attribute tag.
   * `indoor=wall` implies line geometry on closed ways.
 * `natural`
-  * `natural=coastline` features are used only to render oceans and are not included separately.
+  * `natural=coastline` features are included only in the `area` layer as aggregate oceans. They do not carry attributes.
   * `natural=bay/peninsula` features are included only in the `point` layer, not `area` or `line`.
 * `power`
   * `power=cable/line/minor_line` imply line geometry on closed ways.

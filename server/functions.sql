@@ -12,6 +12,7 @@ CREATE OR REPLACE
         env_geom,
         ST_Area(env_geom) AS env_area,
         (ST_XMax(env_geom) - ST_XMin(env_geom)) AS env_width,
+        (ST_YMax(env_geom) - ST_YMin(env_geom)) AS env_height,
 
         ST_XMax(env_geom) AS rightX,
         ST_XMin(env_geom) AS leftX,
@@ -47,16 +48,65 @@ CREATE OR REPLACE
           open_segments AS (
             SELECT geom,
               ST_StartPoint(geom) AS startP,
-              ST_X(ST_StartPoint(geom)) AS startX,
-              ST_Y(ST_StartPoint(geom)) AS startY,
-              ST_EndPoint(geom) AS endP,
-              ST_X(ST_EndPoint(geom)) AS endX,
-              ST_Y(ST_EndPoint(geom)) AS endY
+              -- ST_X(ST_StartPoint(geom)) AS startX,
+              -- ST_Y(ST_StartPoint(geom)) AS startY,
+              ST_EndPoint(geom) AS endP
+              -- ST_X(ST_EndPoint(geom)) AS endX,
+              -- ST_Y(ST_EndPoint(geom)) AS endY
             FROM segments
             WHERE NOT ST_IsClosed(geom)
           ),
-          filled_segment_info AS (
-            -- assumptions: the endpoints of each segment sit on the bounds of the envelope
+          terminus_points AS (
+            SELECT startP AS p, ST_X(startP) AS x, ST_Y(startP) AS y, 'start' AS placement
+            FROM open_segments
+            UNION ALL
+            SELECT endP AS p, ST_X(endP) AS x, ST_Y(endP) AS y, 'end' AS placement
+            FROM open_segments
+          ),
+          -- order the points in clockwise order around the sides of the tile
+          ordered_terminus_points AS (
+            SELECT *, ROW_NUMBER() OVER (
+            ORDER BY
+              CASE 
+                WHEN x = leftX THEN
+                  (y - bottomY) / env_width
+                WHEN y = topY THEN
+                  1 + (x - leftX) / env_height
+                WHEN x = rightX THEN
+                  2 + (1 - (y - bottomY) / env_width)
+                ELSE -- assume y = bottomY
+                  3 + (1 - (x - leftX) / env_height)
+              END
+            ) AS rn
+            FROM terminus_points, envelope env
+          ),
+          should_bump AS (
+            SELECT COUNT(*) AS flag FROM ordered_terminus_points WHERE rn = 1 AND placement = 'start'
+          ),
+          terminus_points_row_count AS (
+            SELECT COUNT(*) AS numrows FROM ordered_terminus_points
+          ),
+          -- if the first point is a start point, bump everything up by one so the first point is an endpoint
+          ordered_terminus_points_w_an_endpoint_first AS (
+            SELECT p, x, y,
+              CASE
+                WHEN should_bump.flag = 1 THEN
+                  CASE
+                    WHEN rn = terminus_points_row_count.numrows THEN 1
+                    ELSE rn + 1
+                  END
+                ELSE
+                  rn
+              END AS rn
+            FROM ordered_terminus_points, should_bump, terminus_points_row_count
+          ),
+          paired_terminus_points AS (
+            SELECT t1.p as endP, t2.p as startP, t1.x as endX, t2.x as startX, t1.y as endY, t2.y as startY
+            FROM ordered_terminus_points_w_an_endpoint_first t1
+            JOIN ordered_terminus_points_w_an_endpoint_first t2 ON t2.rn = t1.rn + 1
+            WHERE t1.rn % 2 = 1
+          ),
+          manual_segment_info AS (
             SELECT
               CASE
                 WHEN startX = leftX THEN
@@ -64,116 +114,98 @@ CREATE OR REPLACE
                     WHEN endX = leftX THEN
                       CASE
                         WHEN endY < startY THEN
-                          ARRAY[startP]
+                          ARRAY[endP, startP]
                         ELSE -- endY > startY
-                          ARRAY[topLeft, topRight, bottomRight, bottomLeft, startP]
+                          ARRAY[endP, topLeft, topRight, bottomRight, bottomLeft, startP]
                       END
                     WHEN endX = rightX THEN
-                      ARRAY[bottomRight, bottomLeft, startP]
+                      ARRAY[endP, bottomRight, bottomLeft, startP]
                     WHEN endY = bottomY THEN
-                      ARRAY[bottomLeft, startP]
+                      ARRAY[endP, bottomLeft, startP]
                     WHEN endY = topY THEN
-                      ARRAY[topRight, bottomRight, bottomLeft, startP]
+                      ARRAY[endP, topRight, bottomRight, bottomLeft, startP]
                     ELSE NULL
                   END
                 WHEN startX = rightX THEN
                   CASE
                     WHEN endX = leftX THEN
-                      ARRAY[topLeft, topRight, startP]
+                      ARRAY[endP, topLeft, topRight, startP]
                     WHEN endX = rightX THEN
                       CASE
                         WHEN endY < startY THEN
-                          ARRAY[bottomRight, bottomLeft, topLeft, topRight, startP]
+                          ARRAY[endP, bottomRight, bottomLeft, topLeft, topRight, startP]
                         ELSE -- endY > startY
-                          ARRAY[startP]
+                          ARRAY[endP, startP]
                       END
                     WHEN endY = bottomY THEN
-                      ARRAY[bottomLeft, topLeft, topRight, startP]
+                      ARRAY[endP, bottomLeft, topLeft, topRight, startP]
                     WHEN endY = topY THEN
-                      ARRAY[topRight, startP]
+                      ARRAY[endP, topRight, startP]
                     ELSE NULL
                   END
                 WHEN startY = bottomY THEN
                   CASE
                     WHEN endX = leftX THEN
-                      ARRAY[topLeft, topRight, bottomRight, startP]
+                      ARRAY[endP, topLeft, topRight, bottomRight, startP]
                     WHEN endX = rightX THEN
-                      ARRAY[bottomRight, startP]
+                      ARRAY[endP, bottomRight, startP]
                     WHEN endY = bottomY THEN
                       CASE
                         WHEN endX < startX THEN
-                          ARRAY[bottomLeft, topLeft, topRight, bottomRight, startP]
+                          ARRAY[endP, bottomLeft, topLeft, topRight, bottomRight, startP]
                         ELSE -- endX > startX
-                          ARRAY[startP]
+                          ARRAY[endP, startP]
                       END
                     WHEN endY = topY THEN
-                      ARRAY[topRight, bottomRight, startP]
+                      ARRAY[endP, topRight, bottomRight, startP]
                     ELSE NULL
                   END
                 WHEN startY = topY THEN
                   CASE
                     WHEN endX = leftX THEN
-                      ARRAY[topLeft, startP]
+                      ARRAY[endP, topLeft, startP]
                     WHEN endX = rightX THEN
-                      ARRAY[bottomRight, bottomLeft, topLeft, startP]
+                      ARRAY[endP, bottomRight, bottomLeft, topLeft, startP]
                     WHEN endY = bottomY THEN
-                      ARRAY[bottomLeft, topLeft, startP]
+                      ARRAY[endP, bottomLeft, topLeft, startP]
                     WHEN endY = topY THEN
                       CASE
                       WHEN endX < startX THEN
-                        ARRAY[startP]
+                        ARRAY[endP, startP]
                       ELSE -- endX > startX
-                        ARRAY[topRight, bottomRight, bottomLeft, topLeft, startP]
+                        ARRAY[endP, topRight, bottomRight, bottomLeft, topLeft, startP]
                       END
                     ELSE NULL
                   END
                 ELSE NULL
-              END AS additionalPoints, geom
-            FROM open_segments, envelope env
+              END AS segment_points_array
+            FROM paired_terminus_points, envelope env
           ),
-          component_polygons AS (
-            SELECT ST_MakePolygon(
-              ST_MakeLine(
-                (SELECT array_agg(dp.geom ORDER BY dp.path)
-                FROM ST_DumpPoints(geom) AS dp) ||
-                additionalPoints
-              )
-            ) AS geom
-            FROM filled_segment_info WHERE additionalPoints IS NOT NULL
-            UNION ALL
-            SELECT ST_MakePolygon(geom) AS geom FROM segments WHERE ST_IsClosed(geom)
-          ),
-          intersected AS (
-            WITH RECURSIVE intersect_all AS (
-            SELECT 1::bigint AS rn, geom
-            FROM (
-              SELECT ROW_NUMBER() OVER () AS rn, geom
-              FROM component_polygons
-              WHERE geom IS NOT NULL
-            ) sub
-            WHERE rn = 1
-
-            UNION ALL
-
+          wireframe_lines AS (
             SELECT
-              s.rn,
-              CASE
-                WHEN ST_Intersects(i.geom, s.geom)
-                  THEN ST_Intersection(i.geom, s.geom)
-                  ELSE ST_Union(i.geom, s.geom)
-              END AS geom
-            FROM intersect_all i
-            JOIN (
-              SELECT ROW_NUMBER() OVER () AS rn, geom
-              FROM component_polygons
-              WHERE geom IS NOT NULL
-            ) s ON s.rn = i.rn + 1
+              ST_MakeLine(
+                segment_points_array
+              ) AS geom
+            FROM manual_segment_info
+            WHERE segment_points_array IS NOT NULL
+            UNION ALL
+            SELECT geom FROM open_segments
+          ),
+          built_lines AS (
+            SELECT (ST_Dump(ST_Multi(ST_LineMerge(ST_Multi(ST_Collect(geom)))))).geom AS geom
+            FROM wireframe_lines
+          ),
+          all_lines AS (
+              SELECT geom
+              FROM built_lines
+              WHERE ST_IsClosed(geom)
+            UNION ALL 
+              SELECT geom
+              FROM segments
+              WHERE ST_IsClosed(geom)
           )
-          SELECT geom FROM intersect_all
-          ORDER BY rn DESC
-          LIMIT 1
-          )
-          SELECT geom FROM intersected
+          SELECT ST_Collect(ST_MakePolygon(geom)) AS geom
+          FROM all_lines
         ), envelope env
         WHERE geom IS NOT NULL
       ) as tile

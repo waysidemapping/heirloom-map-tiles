@@ -520,6 +520,7 @@ CREATE OR REPLACE
               OR (z >= 12 AND ("highway" IN ('tertiary', 'tertiary_link', 'residential', 'unclassified')))
               OR z >= 13
             )
+            AND (z >= 15 OR "highway" != "footway" OR "footway" IS NULL)
         UNION ALL
           SELECT *
           FROM "historic", envelope env

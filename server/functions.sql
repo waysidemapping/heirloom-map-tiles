@@ -848,25 +848,24 @@ CREATE OR REPLACE
   SELECT string_agg(mvt, ''::bytea) FROM tiles;
 $$;
 
-DO $do$ BEGIN
-    EXECUTE 'COMMENT ON FUNCTION function_get_rustic_tile IS $tj$' || $$
-    {
-        "description": "Delightfully unrefined OpenStreetMap tiles",
-        "attribution": "© OpenStreetMap",
-        "vector_layers": [
-          {
-            "id": "area",
-            "fields": {{{FIELD_DEFS}}}
-          },
-          {
-            "id": "line",
-            "fields": {{{FIELD_DEFS}}}
-          },
-          {
-            "id": "point",
-            "fields": {{{FIELD_DEFS}}}
-          }
-        ]
-    }
-    $$::json || '$tj$';
-END $do$;
+COMMENT ON FUNCTION function_get_rustic_tile IS
+$$
+{
+    "description": "Delightfully unrefined OpenStreetMap tiles",
+    "attribution": "© OpenStreetMap",
+    "vector_layers": [
+      {
+        "id": "area",
+        "fields": {{{FIELD_DEFS}}}
+      },
+      {
+        "id": "line",
+        "fields": {{{FIELD_DEFS}}}
+      },
+      {
+        "id": "point",
+        "fields": {{{FIELD_DEFS}}}
+      }
+    ]
+}
+$$;

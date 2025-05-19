@@ -1,6 +1,6 @@
-# Rustic Map Tile Schema
+# Rustic Map Tiles Schema
 
-This schema is in development and is not yet versioned. Users should expect that changes may occur at any time without notice.
+This schema is in active development and is not yet versioned. Users should expect that changes may occur at any time without notice.
 
 ## Layers
 

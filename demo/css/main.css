@@ -3,3 +3,15 @@
   width: 100vw;
   height: 100vh;
 }
+
+.maplibregl-popup:not(.locked) > * {
+  pointer-events: none !important;
+}
+
+.tag-table {
+  font-family: 'SF Mono', SFMono-Regular, ui-monospace, -apple-system, monospace;
+}
+.tag-table td {
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+}

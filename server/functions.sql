@@ -2,7 +2,7 @@ CREATE OR REPLACE
   FUNCTION function_get_rustic_tile(z integer, x integer, y integer)
   RETURNS bytea 
   LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $$
+  AS $function_body$
   WITH
     raw_envelope AS (
       SELECT ST_TileEnvelope(z, x, y) AS env_geom
@@ -871,26 +871,32 @@ CREATE OR REPLACE
       ) as tile
   )
   SELECT string_agg(mvt, ''::bytea) FROM tiles;
-$$;
+$function_body$;
 
 COMMENT ON FUNCTION function_get_rustic_tile IS
-$$
+$tilejson$
 {
-    "description": "Delightfully unrefined OpenStreetMap tiles",
-    "attribution": "© OpenStreetMap",
-    "vector_layers": [
-      {
-        "id": "area",
-        "fields": {{{FIELD_DEFS}}}
-      },
-      {
-        "id": "line",
-        "fields": {{{FIELD_DEFS}}}
-      },
-      {
-        "id": "point",
-        "fields": {{{FIELD_DEFS}}}
+  "description": "Delightfully unrefined OpenStreetMap tiles",
+  "attribution": "© OpenStreetMap",
+  "vector_layers": [
+    {
+      "id": "area",
+      "fields": {
+        {{FIELD_DEFS}}
       }
-    ]
+    },
+    {
+      "id": "line",
+      "fields": {
+        {{FIELD_DEFS}}
+      }
+    },
+    {
+      "id": "point",
+      "fields": {
+        {{FIELD_DEFS}}
+      }
+    }
+  ]
 }
-$$;
+$tilejson$;

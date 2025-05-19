@@ -496,7 +496,7 @@ CREATE OR REPLACE
     tagged_area_features AS (
       SELECT
         {{COLUMN_NAMES}},
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ('name') OR key LIKE 'name:%') AS tags,
+        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) OR key LIKE 'name:%') AS tags,
         geom
       FROM unioned_area_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
@@ -648,7 +648,7 @@ CREATE OR REPLACE
     tagged_line_features AS (
       SELECT
         {{COLUMN_NAMES}},
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ('name') OR key LIKE 'name:%') AS tags,
+        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) OR key LIKE 'name:%') AS tags,
         geom
       FROM unioned_line_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
@@ -888,7 +888,7 @@ CREATE OR REPLACE
     tagged_point_features AS (
       SELECT
         {{COLUMN_NAMES}},
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ('name') OR key LIKE 'name:%') AS tags,
+        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) OR key LIKE 'name:%') AS tags,
         geom
       FROM unioned_point_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true

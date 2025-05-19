@@ -2,6 +2,7 @@ access
 advertising
 allotments
 amenity
+artwork_type
 attraction
 atv
 backcountry

@@ -674,7 +674,8 @@ CREATE OR REPLACE
             geom_type IN ('point', 'area')
             OR (geom_type = 'closed_way' AND "aeroway" NOT IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
           )            
-          AND z >= 12
+          AND z >= 8
+          AND (z >= 12 OR ("aeroway" = 'aerodrome' AND "aerodrome" = 'international'))
           AND (z >= 15 OR ("aeroway" NOT IN ('gate', 'navigationaid', 'windsock')))
       UNION ALL
         SELECT *

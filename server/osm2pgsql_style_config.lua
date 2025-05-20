@@ -100,7 +100,7 @@ function loadWayGeometry(object, row)
     end
 end
 
-function loadRelationGeometry(object, row)
+function loadMultipolygonGeometry(object, row)
     row["geom"] = object:as_multipolygon():transform(3857)
     row["area_3857"] = row["geom"]:area()
     row["geom_type"] = "area"
@@ -121,9 +121,10 @@ function loadTags(object, row)
 end
 
 function processObject(object, loadGeometry)
+    local tags = object.tags
     local row
     for key, table in pairs(tables) do
-        if object.tags[key] and object.tags[key] ~= 'no' and not (ignore_top_level_tags[key] and ignore_top_level_tags[key][object.tags[key]]) then
+        if tags[key] and tags[key] ~= 'no' and not (ignore_top_level_tags[key] and ignore_top_level_tags[key][tags[key]]) then
             if not row then
                 -- wait to create the row until we know we'll actuallly want to insert it
                 row = {}
@@ -155,22 +156,26 @@ function osm2pgsql.process_way(object)
     processObject(object, loadWayGeometry)
 end
 
-local allowed_relation_types = {
+local multipolygon_relation_types = {
     multipolygon = true,
     boundary = true
 }
 
 function osm2pgsql.process_relation(object)
-    if allowed_relation_types[object.tags.type] then
-        processObject(object, loadRelationGeometry)
+    if multipolygon_relation_types[object.tags.type] then
+        processObject(object, loadMultipolygonGeometry)
     end
 end
 
--- function osm2pgsql.select_relation_members(relation)
---     if relation.tags.type == 'route' then
---         return {
---             nodes = {},
---             ways = osm2pgsql.way_member_ids(relation)
---         }
+-- function osm2pgsql.select_relation_members(object)
+--     if multipolygon_relation_types[object.tags.type] then
+--         for i, member in ipairs(object.members) do
+--             if member.type == 'n' and member.role == 'label' then
+--                 return {
+--                     nodes = {member.ref},
+--                     ways = {}
+--                 }
+--             end 
+--         end
 --     end
 -- end

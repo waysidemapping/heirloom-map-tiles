@@ -706,6 +706,14 @@ CREATE OR REPLACE
           AND z >= 15
       UNION ALL
         SELECT *
+        FROM "boundary", envelope env
+        WHERE geom && env.env_geom
+          AND geom_type IN ('point', 'area', 'closed_way')
+          AND "boundary" IN ('protected_area', 'aboriginal_lands')
+          AND z >= 4
+          AND (z >= 12 OR "area_3857" > env.env_area * 0.005)
+      UNION ALL
+        SELECT *
         FROM "club", envelope env
         WHERE geom && env.env_geom
           AND geom_type IN ('point', 'area', 'closed_way')

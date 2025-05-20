@@ -888,16 +888,30 @@ CREATE OR REPLACE
     ),
     tagged_point_features AS (
       SELECT
+        id,
         {{COLUMN_NAMES}},
         jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}}) AS tags,
         geom
       FROM unioned_point_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
       WHERE geom IS NOT NULL
-      GROUP BY {{COLUMN_NAMES}}, geom
+      GROUP BY id, {{COLUMN_NAMES}}, geom
     ),
     mvt_point_features AS (
-      SELECT {{COLUMN_NAMES}}, tags, ST_AsMVTGeom(ST_PointOnSurface(geom), env.env_geom, 4096, 64, true) AS geom
+      SELECT
+        CASE
+          WHEN id > 0 THEN 'n'
+          WHEN id > -100000000000000000 THEN 'w'
+          ELSE 'r'
+        END AS osm_type,
+        CASE
+          WHEN id > 0 THEN id
+          WHEN id > -100000000000000000 THEN -id
+          ELSE -id - 100000000000000000
+        END AS osm_id,
+        {{COLUMN_NAMES}},
+        tags,
+        ST_AsMVTGeom(ST_PointOnSurface(geom), env.env_geom, 4096, 64, true) AS geom
       FROM tagged_point_features, envelope env
       WHERE geom IS NOT NULL
     ),

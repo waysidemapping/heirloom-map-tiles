@@ -201,7 +201,7 @@ if ! command -v martin >/dev/null 2>&1; then
     echo "Martin not found. Installing with cargo..."
     cargo install cargo-binstall
     cargo binstall martin
-    martin --help
+    martin --version
 else
     echo "Martin is already installed: $(martin --version)"
 fi

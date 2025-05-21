@@ -12,6 +12,7 @@ CREATE OR REPLACE
         env_geom,
         ST_Area(env_geom) AS env_area,
         ST_Area(env_geom) * 0.00001 AS min_area,
+        ST_Area(env_geom) * 0.0005 AS boundary_min_area,
         (ST_XMax(env_geom) - ST_XMin(env_geom)) AS env_width,
         (ST_YMax(env_geom) - ST_YMin(env_geom)) AS env_height,
         ((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2 AS simplify_tolerance,
@@ -288,6 +289,13 @@ CREATE OR REPLACE
           AND "area_3857" > min_area
           AND "building" IS NULL
           AND z >= 10
+      UNION ALL
+        SELECT id, {{COLUMN_NAMES}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom
+        FROM "boundary", envelope env
+        WHERE geom && env.env_geom
+          AND geom_type IN ('area', 'closed_way')
+          AND "boundary" IN ('protected_area', 'aboriginal_lands')
+          AND ((z >= 10 AND "area_3857" > min_area) OR "area_3857" > boundary_min_area)
       UNION ALL
         SELECT id, {{COLUMN_NAMES}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom
         FROM "building", envelope env
@@ -787,7 +795,7 @@ CREATE OR REPLACE
         WHERE geom && env.env_geom
           AND geom_type IN ('point', 'area', 'closed_way')
           AND "boundary" IN ('protected_area', 'aboriginal_lands')
-          AND (z >= 12 OR "area_3857" > env.env_area * 0.005)
+          AND (z >= 10 OR "area_3857" > boundary_min_area)
       UNION ALL
         SELECT id, {{COLUMN_NAMES}}, tags, geom
         FROM "club", envelope env

@@ -1,9 +1,10 @@
 var map = new maplibregl.Map({
-    container: 'map', // container id
-    style: '/style.json', // style URL
+    container: 'map',
+    style: '/style.json',
     hash: 'map',
-    center: [0, 0], // starting position [lng, lat]
-    zoom: 1 // starting zoom
+    minZoom: 5,
+    center: [0, 0],
+    zoom: 5
 });
 
 map

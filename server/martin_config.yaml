@@ -58,7 +58,7 @@ postgres:
       function: function_get_rustic_tile
 
       # An integer specifying the minimum zoom level
-      minzoom: 0
+      minzoom: 5
 
       # An integer specifying the maximum zoom level. MUST be >= minzoom
       maxzoom: 26

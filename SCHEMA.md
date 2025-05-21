@@ -30,7 +30,6 @@ The following keys are supported on any geometry type (point, line, or area feat
   * `aeroway=jet_bridge/parking_position/runway/taxiway` imply line geometry on closed ways.
 * `golf`
   * `golf=hole` does NOT imply line geometry on closed ways because this tag is always assumed to be used on open ways. Please add `area=no` to any exceptions.
-* `historic`
 * `indoor`
   * `indoor=yes` is not supported as a top-level tag since it is assumed to be an attribute tag.
   * `indoor=wall` implies line geometry on closed ways.
@@ -62,6 +61,7 @@ The following keys are supported only on point and area features. Closed ways ar
 * `education`
 * `emergency`
 * `healthcare`
+* `historic`
 * `information`
   * `information` is supported with and without `tourism=information`.
 * `landuse`

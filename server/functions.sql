@@ -615,13 +615,6 @@ CREATE OR REPLACE
           )
       UNION ALL
         SELECT id, {{COLUMN_NAMES}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom
-        FROM "historic", envelope env
-        WHERE geom && env.env_geom
-          AND geom_type = 'line'
-          AND "highway" IS NULL 
-          AND z >= 13
-      UNION ALL
-        SELECT id, {{COLUMN_NAMES}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom
         FROM "indoor", envelope env
         WHERE geom && env.env_geom
           AND (

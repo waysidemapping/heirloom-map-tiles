@@ -863,10 +863,13 @@ CREATE OR REPLACE
           AND (
             (
               "population" ~ '^\d+$'
-              AND (z >= 4 AND ("capital" IN ('2', '4') OR "population"::integer > 1000000))
-              OR (z >= 8 AND ("capital" IN ('6')))
+              AND (
+                ("capital" IN ('2', '4') OR "population"::integer > 1000000)
+                OR (z >= 6 AND ("place" IN ('city') AND "population"::integer > 100000))
+                OR (z >= 8 AND ("capital" IN ('6') OR "place" IN ('city')))
+              )
             )
-            OR z >= 13
+            OR z >= 12
           )
       UNION ALL
         SELECT *

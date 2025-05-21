@@ -7,7 +7,7 @@ _Delightfully unrefined OpenStreetMap tiles_
 - 🤌 **Pure OpenStreetMap**: OSM has all the data needed to make a great map. Patching in external datasets such as Natural Earth or Wikidata makes the map harder to deploy and more complicated to edit, so Rustic doesn't bother.
 - 🦆 **No tag transforms**: OSM mappers know OSM tagging and typically want to work with it directly. Rustic does not make opinionated tag transforms, leaving it for the client app to interpret tag values (though tags are filtered for berevity).
 - 🔂 **Minutely updates**: Seeing your edits appear on the map right away makes mapping more fun. It also surfaces potential issues quickly, before they are propagated elsewhere. Rustic pulls in minutely diffs from the mainline OSM servers to keep the tiles as fresh as possible.
-- 🛤️ **Speedy renders**: Minutely tiles can't be cached for very long, so lightning-fast renders are critical. Rustic has a highly optimized SQL query that avoids conveniences like procedural language, recursion, `UNION`s, and expensive spatial functions like `ST_Union`.
+- 🛤️ **Speedy renders**: Minutely tiles can't be cached for very long, so lightning-fast renders are critical. Rustic has a highly optimized SQL query that goes without luxuries like procedural language, recursion, `UNION`, `ST_SimplifyPreserveTopology`, and `ST_Union`.
 - 🌾 **High-zoom tiles**: Other tilesets render only low- and mid-zoom tiles, relying on "overzoom" to show detailed areas. Rustic instead renders high-zoom tiles so that indoor floorplans, building parts, highway areas, and other micromapped features can be included without ballooning individual tile sizes.
 
 ### Caveats

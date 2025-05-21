@@ -93,7 +93,7 @@
             "filter": ["has", "railway"],
             "paint": {
                 "line-color": "Black",
-                "line-opacity": 0.5
+                "line-opacity": 1
             }
         },
         {
@@ -108,7 +108,7 @@
                     ["in", ["get", "highway"], ["literal", ["path", "footway", "cycleway", "bridleway", "cooridor"]]], "SaddleBrown",
                     "Red"
                 ],
-                "line-opacity": 0.5
+                "line-opacity": 1
             }
         },
         {
@@ -126,17 +126,11 @@
             "id": "building",
             "source": "rustic",
             "source-layer": "area",
-            "type": "fill-extrusion",
+            "type": "fill",
             "filter": ["has", "building"],
             "paint": {
-                "fill-extrusion-color": "Orange",
-                "fill-extrusion-opacity": 0.5,
-                "fill-extrusion-height": [
-                    "case",
-                    ["has", "height"], ["to-number", ["get", "height"]],
-                    ["has", "building:levels"], ["*", ["to-number", ["get", "building:levels"]], 3],
-                    3
-                ]
+                "fill-color": "Orange",
+                "fill-opacity": 0.5
             }
         },
         {

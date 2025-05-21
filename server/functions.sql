@@ -822,6 +822,8 @@ CREATE OR REPLACE
         FROM "golf", envelope env
         WHERE geom && env.env_geom
           AND geom_type IN ('point', 'area', 'closed_way')
+          AND "landuse" IS NULL
+          AND "natural" IS NULL
           AND z >= 15
       UNION ALL
         SELECT id, {{COLUMN_NAMES}}, tags, geom
@@ -941,7 +943,10 @@ CREATE OR REPLACE
         FROM "public_transport", envelope env
         WHERE geom && env.env_geom
           AND geom_type IN ('point', 'area', 'closed_way')
-          AND z >= 12
+          AND (
+            (z >= 12 AND "public_transport" = 'station')
+            OR z >= 15
+          )
       UNION ALL
         SELECT id, {{COLUMN_NAMES}}, tags, geom
         FROM "railway", envelope env

@@ -603,9 +603,9 @@ CREATE OR REPLACE
         SELECT NULL AS id, {{COLS_LOW_Z_HIGHWAY}}, '{}'::jsonb AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), simplify_tolerance, true) AS geom
         FROM "highway", envelope env
         WHERE geom && env.env_geom
-        AND geom_type IN ('line', 'closed_way')
-        AND z < 10
-        AND "highway" IN ('motorway', 'trunk', 'motorway_link', 'trunk_link', 'primary')
+          AND geom_type IN ('line', 'closed_way')
+          AND z < 10
+          AND "highway" IN ('motorway', 'trunk', 'motorway_link', 'trunk_link', 'primary')
         GROUP BY "highway", simplify_tolerance
       UNION ALL
         SELECT id, {{COLS}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom

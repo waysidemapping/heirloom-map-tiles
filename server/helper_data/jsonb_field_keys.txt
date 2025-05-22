@@ -43,7 +43,6 @@ dish_washing
 dog
 drinking_water
 education
-ele
 electric_bicycle
 electrified
 embankment
@@ -136,7 +135,6 @@ mtb:scale
 mtb:scale:imba
 mtb:scale:uphill
 natural
-network
 nudism
 office
 ohv
@@ -162,7 +160,6 @@ ramp:stroller
 ramp:wheelchair
 rapids
 rapids:name
-ref
 religion
 reservation
 route

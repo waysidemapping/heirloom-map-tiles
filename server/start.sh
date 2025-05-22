@@ -59,6 +59,9 @@ else
     echo "Git is installed."
 fi
 
+# Need to do this every time unfortunately
+export PATH="${OSM2PGSQL_DIR}/bin:$PATH"
+
 is_osm2pgsql_not_installed() {
     if command -v osm2pgsql >/dev/null 2>&1; then
         INSTALLED_VERSION=$(osm2pgsql --version | grep -oP '\d+\.\d+\.\d+')
@@ -99,8 +102,6 @@ if is_osm2pgsql_not_installed; then
     cd ..
     cd ..
     rm -rf "osm2pgsql"
-
-    export PATH="${OSM2PGSQL_DIR}/bin:$PATH"
 
     osm2pgsql --version
 

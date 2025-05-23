@@ -5,14 +5,7 @@ local table_keys = {}
 
 local tables = {}
 
-local coastline_table = osm2pgsql.define_table{
-    name = 'coastline',
-    ids = { type = 'any', id_column = 'id' },
-    columns = {
-        { column = 'area_3857', type = 'real' },
-        { column = 'geom', type = 'linestring', proj = '3857', not_null = true },
-    }
-}
+-- local multipolygonMemberNodeIds = {}
 
 local file = io.open(helperDataDir .. "sql_column_keys.txt", "r")
 local file_string = file:read("*all")
@@ -34,19 +27,78 @@ local columns = {
     { column = 'area_3857', type = 'real' },
     { column = 'geom', type = 'geometry', proj = '3857', not_null = true },
     { column = 'geom_type', type = 'text', not_null = true }
+    -- { column = 'admin_centre_node_id', type = 'int8' },
+    -- { column = 'label_node_id', type = 'int8' }
+}
+local relation_columns = {
+    { column = 'tags', type = 'jsonb' }
 }
 
 for key, _ in pairs(column_keys) do
     table.insert(columns, { column = key, type = 'text' })
+    table.insert(relation_columns, { column = key, type = 'text' })
 end
 
 for key, _ in pairs(table_keys) do
     tables[key] = osm2pgsql.define_table{
         name = key,
-        ids = { type = 'any', id_column = 'id' },
+        ids = { type = 'any', id_column = 'id', create_index = 'primary_key' },
         columns = columns
     }
 end
+
+local route_relation_table = osm2pgsql.define_table{
+    name = 'route_relation',
+    ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
+    columns = relation_columns
+}
+
+local waterway_relation_table = osm2pgsql.define_table{
+    name = 'waterway_relation',
+    ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
+    columns = relation_columns
+}
+
+local way_route_relation_link_table = osm2pgsql.define_table{
+    name = 'way_route_relation_link',
+    ids = { type = 'any', id_column = 'relation_id', create_index = 'always' },
+    columns = {
+        { column = 'way_id', type = 'int8' }
+    },
+    indexes = {
+        { column = 'way_id', method = 'btree', include = 'relation_id' }
+    }
+}
+
+local way_waterway_relation_link_table = osm2pgsql.define_table{
+    name = 'way_waterway_relation_link',
+    ids = { type = 'any', id_column = 'relation_id', create_index = 'always' },
+    columns = {
+        { column = 'way_id', type = 'int8' }
+    },
+    indexes = {
+        { column = 'way_id', method = 'btree', include = 'relation_id' }
+    }
+}
+
+local coastline_table = osm2pgsql.define_table{
+    name = 'coastline',
+    ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
+    columns = {
+        { column = 'area_3857', type = 'real' },
+        { column = 'geom', type = 'linestring', proj = '3857', not_null = true },
+    }
+}
+
+local multipolygon_relation_types = {
+    multipolygon = true,
+    boundary = true
+}
+
+local route_relation_types = {
+    route = true,
+    waterway = true
+}
 
 -- Define tags that should not quality features to be included in top-level tag tables. `no` is handled separately
 local ignore_top_level_tags = {
@@ -101,6 +153,25 @@ function loadWayGeometry(object, row)
 end
 
 function loadMultipolygonGeometry(object, row)
+    -- local didFindLabel = false
+    -- local didFindAdminCentre = false
+    -- for i, member in ipairs(object.members) do
+    --     if member.type == 'n' then
+    --         if not didFindLabel and member.role == 'label' then
+    --             multipolygonMemberNodeIds[member.ref] = true
+    --             row["label_node_id"] = member.ref
+    --             didFindLabel = true
+    --         end
+    --         if not didFindAdminCentre and member.role == 'admin_centre' then
+    --             multipolygonMemberNodeIds[member.ref] = true
+    --             row["admin_centre_node_id"] = member.ref
+    --             didFindAdminCentre = true
+    --         end
+    --         if didFindAdminCentre and didFindLabel then
+    --             break
+    --         end
+    --     end
+    -- end
     row["geom"] = object:as_multipolygon():transform(3857)
     row["area_3857"] = row["geom"]:area()
     row["geom_type"] = "area"
@@ -154,26 +225,54 @@ function osm2pgsql.process_way(object)
     processObject(object, loadWayGeometry)
 end
 
-local multipolygon_relation_types = {
-    multipolygon = true,
-    boundary = true
-}
-
 function osm2pgsql.process_relation(object)
-    if multipolygon_relation_types[object.tags.type] then
+    local relType = object.tags.type
+    if multipolygon_relation_types[relType] then
         processObject(object, loadMultipolygonGeometry)
+    elseif route_relation_types[relType] then
+        local row = {
+            id = object.id
+        }
+        loadTags(object, row)
+        if relType == 'route' then
+            route_relation_table:insert(row)
+        else
+            waterway_relation_table:insert(row)
+        end
+
+        local seenWaysIds = {}
+
+        for i, member in ipairs(object.members) do
+            if member.type == 'w' and not seenWaysIds[member.ref] then
+                if relType == 'route' then
+                    seenWaysIds[member.ref] = true
+                    way_route_relation_link_table:insert{
+                        relation_id = object.id,
+                        way_id = -member.ref
+                    }
+                elseif member.role == 'main_stream' then -- implied relType == 'waterway'
+                    seenWaysIds[member.ref] = true
+                    way_waterway_relation_link_table:insert{
+                        relation_id = object.id,
+                        way_id = -member.ref
+                    }
+                end
+            end 
+        end
     end
 end
 
 -- function osm2pgsql.select_relation_members(object)
---     if multipolygon_relation_types[object.tags.type] then
---         for i, member in ipairs(object.members) do
---             if member.type == 'n' and member.role == 'label' then
---                 return {
---                     nodes = {member.ref},
---                     ways = {}
---                 }
---             end 
+--     local nodeIds = {}
+--     local wayIds = {}
+--     local relType = object.tags.type
+--     if relType then
+--         if multipolygon_relation_types[relType] then
+--             nodeIds = osm2pgsql.node_member_ids(object)
 --         end
 --     end
+--     return {
+--         nodes = nodeIds,
+--         ways = wayIds
+--     }
 -- end

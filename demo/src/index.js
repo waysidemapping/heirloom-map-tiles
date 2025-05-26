@@ -40,12 +40,17 @@ function didMouseMoveMap(e) {
   processMouseForPopup(e);
 }
 
+let osmTypeName = {
+  'n': 'node',
+  'w': 'way',
+  'r': 'relation'
+};
+
 function processMouseForPopup(e) {
 
   let entities = map.queryRenderedFeatures(e.point);
-  let entity = entities.length && entities[0];
 
-  if (!entity && !isPopupLocked) {
+  if (!entities.length && !isPopupLocked) {
     activePopup?.remove();
     return;
   }
@@ -62,19 +67,44 @@ function processMouseForPopup(e) {
     .addTo(map);
   }
   if (!isPopupLocked) {
-    let tags = entity.properties;
+
     let table = createElement('table')
       .setAttribute('class', 'tag-table')
       .replaceChildren(
-        ...Object.keys(tags).sort().map(key => {
-          let value = tags[key];
-          return createElement('tr')
-            .append(
-              createElement('td')
-                .append(key),
-              createElement('td')
-                .append(value)
-            );
+        ...entities.flatMap(entity => {
+          let tags = Object.assign({}, entity.properties);
+          let osmId = tags.osm_id;
+          let osmType = tags.osm_type;
+          delete tags.osm_id;
+          delete tags.osm_type;
+          return [
+            (osmId && osmType) ? createElement('a')
+            .setAttribute('target', '_blank')
+            .setAttribute('href', `https://openstreetmap.org/${osmTypeName[osmType]}/${osmId}`)
+            .append(osmType + '/' + osmId) : '',
+          ...Object.keys(tags).sort().map(key => {
+            let value = tags[key];
+            let href = externalLinkForValue(key, value, tags);
+            let valElement = href ? createElement('a')
+                .setAttribute('target', '_blank')
+                .setAttribute('rel', 'nofollow')
+                .setAttribute('href', href)
+                .append(value) : value;
+        
+            return createElement('tr')
+              .append(
+                createElement('td')
+                  .append(
+                    createElement('a')
+                      .setAttribute('target', '_blank')
+                      .setAttribute('href', `https://wiki.openstreetmap.org/wiki/Key:${key}`)
+                      .append(key)
+                  ),
+                createElement('td')
+                  .append(valElement)
+              );
+          })
+          ]
         })
       );
 
@@ -101,9 +131,8 @@ function didClickMap(e) {
       isPopupLocked = false;
 
       let entities = map.queryRenderedFeatures(e.point);
-      let entity = entities.length && entities[0];
 
-      if (entity) {
+      if (entities.length) {
         processMouseForPopup(e);
         isPopupLocked = true;
       } else {
@@ -111,4 +140,20 @@ function didClickMap(e) {
       }
     }
   }
+}
+
+const urlRegex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/i;
+const qidRegex = /^Q\d+$/;
+const wikipediaRegex = /^(.+):(.+)$/;
+
+function externalLinkForValue(key, value, tags) {
+  if (urlRegex.test(value)) {
+    return value;
+  } else if ((key === 'wikidata' || key.endsWith(':wikidata')) && qidRegex.test(value)) {
+    return `https://www.wikidata.org/wiki/${value}`;
+  } else if ((key === 'wikipedia' || key.endsWith(':wikipedia')) && wikipediaRegex.test(value)) {
+    let results = wikipediaRegex.exec(value);
+    return `https://${results[1]}.wikipedia.org/wiki/${results[2]}`;
+  }
+  return null;
 }

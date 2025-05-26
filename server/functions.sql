@@ -718,7 +718,7 @@ CREATE OR REPLACE
           AND geom_type IN ('line', 'closed_way')
           AND z >= 10
           AND "highway" IS NULL
-          AND ("railway" NOT IN ('abandoned', 'razed', 'proposed'))
+          AND ("railway" NOT IN ('abandoned', 'dismantled', 'razed', 'proposed'))
           AND (z >= 13 OR "service" IS NULL)
       UNION ALL
         SELECT id, {{COLS}}, tags, ST_Simplify(geom, simplify_tolerance, true) AS geom

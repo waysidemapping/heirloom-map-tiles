@@ -214,13 +214,13 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
       FROM coastline_open_segments_and_closure_lines
     ),
     coastline_already_closed_segments AS (
-      SELECT geom FROM coastline_merged_segments WHERE ST_IsClosed(geom)
+      SELECT geom FROM coastline_merged_segments WHERE ST_IsClosed(geom) AND ST_NumPoints(geom) >=4
     ),
     -- Combine the segments we manually closed with those that were already closed (i.e. islands that
     -- are fully contained by the tile).
     coastline_all_closed_lines AS (
         SELECT geom FROM coastline_manually_closed_segments
-        WHERE ST_IsClosed(geom)
+        WHERE ST_IsClosed(geom) AND ST_NumPoints(geom) >=4
       UNION ALL
         SELECT geom FROM coastline_already_closed_segments
       UNION ALL

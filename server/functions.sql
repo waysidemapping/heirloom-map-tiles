@@ -13,6 +13,9 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
         (ST_YMax(%1$L::geometry) - ST_YMin(%1$L::geometry)) AS env_height,
         ((ST_XMax(%1$L::geometry) - ST_XMin(%1$L::geometry)))/4096 * 2 AS simplify_tolerance,
 
+        -- A VERY skinny bounding box stretching from the bottom left corner of the envelope to the interior of Antarctica
+        ST_MakeEnvelope(ST_XMin(%1$L::geometry), -20000000, ST_XMin(%1$L::geometry) + 0.000000001, ST_YMin(%1$L::geometry), 3857) AS tile_to_antarctica_bbox,
+
         ST_XMax(%1$L::geometry) AS rightX,
         ST_XMin(%1$L::geometry) AS leftX,
         ST_YMax(%1$L::geometry) AS topY,
@@ -33,7 +36,7 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
     -- First, we fetch all the coastlines in the tile and clip them to the bounds of the tile.
     coastline_raw AS (
       SELECT ST_Intersection(geom, env_geom) AS geom
-      FROM "coastline", envelope env
+      FROM coastline, envelope env
       WHERE geom && env_geom
         -- Ignore very small islands. This will not work if the island is mapped using more than one way.
         AND ("area_3857" = 0 OR "area_3857" > min_area)
@@ -219,12 +222,63 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
         SELECT geom
         FROM coastline_merged_segments
         WHERE ST_IsClosed(geom)
-    )
+    ),
     -- Turn the closed lines into polygons and collect them into a single multipolygon without
-    -- doing any expensive geometry-based processing.
-    SELECT ST_Collect(ST_MakePolygon(geom)) AS geom
-    FROM coastline_all_closed_lines
-    ;
+    -- doing any expensive geometry-based processing. This is our finished feature.
+    ocean_multipolygon AS (
+        SELECT ST_Collect(ST_MakePolygon(geom)) AS geom
+        FROM coastline_all_closed_lines
+    ),
+    -- HOWEVER: If there are no coastlines in the tile then we need to look outside the tile
+    -- to figure out if the tile should be rendered as ocean or land. We'll do this by
+    -- fetching all the coastlines in the database between the tile and the interior of Antarctica,
+    -- a point south of all valid coastline features. We can't go all the way to the south pole since
+    -- we're dealing with Web Mercator coordinates which stretch infinitely south.
+    --
+    -- We'll use an extremely thin bounding box. Once we intersect and merge the coastlines in this box,
+    -- we can assume we have a table containing east-west segments.
+    coastlines_between_tile_and_antarctica AS (
+      SELECT (ST_Dump(ST_Multi(ST_LineMerge(ST_Collect(ST_Intersection(geom, tile_to_antarctica_bbox)))))).geom AS geom
+      FROM coastline, envelope env
+      WHERE geom && tile_to_antarctica_bbox
+    ),
+    -- Fetch the northmost coastline segment that's south of the tile bounds.
+    -- This is all we need to tell if we're in the ocean or not.
+    northermost_coastline_under_tile AS (
+      SELECT * FROM coastlines_between_tile_and_antarctica
+      ORDER BY ST_Y(ST_StartPoint(geom)) DESC
+      LIMIT 1
+    ),
+    -- If there is no segment south of the tile then we're in Antactica (land). Otherwise,
+    -- if the segment's end point is east of its start point then we're in the ocean.
+    --
+    -- If we're dealing with an extract and not the full planet then this will only work
+    -- on ocean tiles north of coastlines. However, it will err on the side of caution
+    -- by rendering land in the ocean rather than ocean on land.
+    blank_tile_is_ocean AS (
+      SELECT count(geom) = 1 AS flag FROM northermost_coastline_under_tile
+      WHERE ST_X(ST_EndPoint(geom)) < ST_X(ST_StartPoint(geom))
+    )
+    SELECT
+      CASE
+        -- If there are coastlines in the tile then use our computed multipolygon
+        WHEN (SELECT count(geom) FROM coastline_all_closed_lines) > 0 THEN
+          geom
+        ELSE
+          -- Use a case to try and avoid computing the blank ocean logic if we don't need to
+          CASE
+            -- If we're dealing with the full planet data then we could simply do:
+            --   MOD((SELECT count(geom) FROM coastlines_between_tile_and_antarctica), 2) = 1
+            -- but this will not always work with extracts, so use this safer option.
+            WHEN (SELECT flag FROM blank_tile_is_ocean) THEN
+              -- If we're in the ocean then just return the tile's bounding box
+              %1$L::geometry
+            ELSE
+              NULL
+          END
+      END AS geom
+      FROM ocean_multipolygon
+  ;
   $fmt$, env_geom);
 END;
 $$;

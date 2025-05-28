@@ -10,8 +10,16 @@
 
 .tag-table {
   font-family: 'SF Mono', SFMono-Regular, ui-monospace, -apple-system, monospace;
+  width: 250px;
 }
-.tag-table td {
+.tag-table td:not(.entity-header) {
   padding: 2px 6px;
   border: 1px solid #ddd;
+  overflow-wrap: anywhere;
+}
+.tag-table tr:not(:first-child) td.entity-header {
+  padding-top: 6px;
+}
+.tag-table td.entity-header a {
+  float: right;
 }

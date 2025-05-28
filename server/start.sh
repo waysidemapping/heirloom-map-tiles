@@ -123,6 +123,26 @@ else
 
     echo "Installing PostgreSQL $PG_VERSION and PostGIS..."
     sudo apt install -y postgresql-$PG_VERSION postgresql-contrib-$PG_VERSION postgis
+
+    # # Path to postgresql.conf based on version
+    # CONF_PATH="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
+
+    # # Ensure the file exists
+    # if [ ! -f "$CONF_PATH" ]; then
+    #     echo "postgresql.conf not found at $CONF_PATH"
+    #     exit 1
+    # fi
+
+    # # Add 'pg_hint_plan' to shared_preload_libraries if not already present
+    # if ! grep -q "pg_hint_plan" "$CONF_PATH"; then
+    #     echo "Adding pg_hint_plan to shared_preload_libraries in $CONF_PATH"
+    #     # Backup the original file before making changes
+
+    #     # Use sed to modify the line in postgresql.conf
+    #     sudo sed -i "/^#shared_preload_libraries/a shared_preload_libraries = 'pg_hint_plan'" "$CONF_PATH"
+    # else
+    #     echo "pg_hint_plan is already in shared_preload_libraries"
+    # fi
 fi
 
 # Start PostgreSQL

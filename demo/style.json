@@ -49,22 +49,15 @@
             }
         },
         {
-            "id": "waterway-barrier-line",
-            "source": "rustic",
-            "source-layer": "line",
-            "type": "line",
-            "filter": ["in", ["get", "waterway"], ["literal", ["dam", "weir"]]],
-            "paint": {
-                "line-color": "Black",
-                "line-opacity": 0.5
-            }
-        },
-        {
             "id": "barrier-line",
             "source": "rustic",
             "source-layer": "line",
             "type": "line",
-            "filter": ["has", "barrier"],
+            "filter": [
+                "any",
+                ["has", "barrier"],
+                ["in", ["get", "waterway"], ["literal", ["dam", "weir"]]]
+            ],
             "paint": {
                 "line-color": "Black",
                 "line-opacity": 0.5

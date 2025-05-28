@@ -576,6 +576,10 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           AND %1$L >= 13
       UNION ALL
         SELECT * FROM lines_in_tile
+        WHERE tags @> '{"route": "ferry"}'
+          AND %1$L < 13
+      UNION ALL
+        SELECT * FROM lines_in_tile
         WHERE tags ? 'natural'
           AND NOT tags ? 'highway'
           AND NOT tags @> '{"natural": "coastline"}'

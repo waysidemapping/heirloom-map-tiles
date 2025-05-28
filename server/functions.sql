@@ -230,7 +230,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geometry, min_area real, min_notable_area real, simplify_tolerance real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _osm_type text)
+  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
   BEGIN
@@ -442,8 +442,8 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
           AND %1$L >= 14
           AND (%1$L >= 17 OR area_3857 > %4$L)
     )
-    SELECT id, tags, ST_Simplify(geom, %5$L, true) AS geom, osm_type FROM filtered_areas
-    ;
+    SELECT id, tags, ST_Simplify(geom, %5$L, true) AS geom, area_3857, osm_type FROM filtered_areas
+  ;
   $fmt$, z, env_geom, min_area, min_notable_area, simplify_tolerance);
 END;
 $$;
@@ -454,28 +454,30 @@ CREATE OR REPLACE FUNCTION function_get_area_layer_for_tile(z integer, env_geom 
   AS $area_function_body$
   WITH
     area_features_without_ocean AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom, _osm_type AS osm_type FROM function_get_area_features(z, env_geom, (ST_Area(env_geom) * 0.00001)::real, 0::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
+      SELECT _id AS id, _tags AS tags, _geom AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_area_features(z, env_geom, (ST_Area(env_geom) * 0.00001)::real, 0::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
     ),
     unioned_area_features AS (
-        SELECT id, tags, geom, osm_type FROM area_features_without_ocean
+        SELECT id, tags, geom, area_3857, osm_type FROM area_features_without_ocean
       UNION ALL
-        SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS osm_type FROM function_get_ocean_for_tile(env_geom)
+        SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS area_3857, NULL AS osm_type FROM function_get_ocean_for_tile(env_geom)
     ),
     tagged_area_features AS (
       SELECT
         id,
         jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}}) AS tags,
         geom,
+        area_3857,
         osm_type
       FROM unioned_area_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom, osm_type
+      GROUP BY id, geom, area_3857, osm_type
     ),
     mvt_area_features AS (
       SELECT
         osm_type,
         id AS osm_id,
         tags,
+        area_3857,
         ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
       FROM tagged_area_features
     )
@@ -775,25 +777,27 @@ CREATE OR REPLACE FUNCTION function_get_point_layer_for_tile(z integer, env_geom
   AS $point_function_body$
   WITH
     point_features AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom, 'n' AS osm_type FROM function_get_node_features(z, env_geom)
+      SELECT _id AS id, _tags AS tags, _geom AS geom, NULL AS area_3857, 'n' AS osm_type FROM function_get_node_features(z, env_geom)
     UNION ALL
-      SELECT _id AS id, _tags AS tags, ST_PointOnSurface(_geom) AS geom, _osm_type AS osm_type FROM function_get_area_features(z, env_geom, (ST_Area(env_geom) * 0.00001)::real, (ST_Area(env_geom) * 0.0005)::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
+      SELECT _id AS id, _tags AS tags, ST_PointOnSurface(_geom) AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_area_features(z, env_geom, (ST_Area(env_geom) * 0.00001)::real, (ST_Area(env_geom) * 0.0005)::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
     ),
     tagged_point_features AS (
       SELECT
         id,
         jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}}) AS tags,
         geom,
+        area_3857,
         osm_type
       FROM point_features
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom, osm_type
+      GROUP BY id, geom, area_3857, osm_type
     ),
     mvt_point_features AS (
       SELECT
         osm_type,
         id AS osm_id,
         tags,
+        area_3857,
         ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
       FROM tagged_point_features
     )

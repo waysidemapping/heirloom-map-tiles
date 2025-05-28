@@ -48,7 +48,7 @@ let osmTypeName = {
 
 function processMouseForPopup(e) {
 
-  let entities = map.queryRenderedFeatures(e.point);
+  let entities = map.queryRenderedFeatures(e.point).filter(entity => !entity.layer.id.includes('-label'));
 
   if (!entities.length && !isPopupLocked) {
     activePopup?.remove();
@@ -76,6 +76,8 @@ function processMouseForPopup(e) {
           let tags = Object.assign({}, entity.properties);
           let osmId = tags.osm_id;
           let osmType = tags.osm_type;
+          let area = tags.area_3857 ? ' · ' + new Intl.NumberFormat('en-US').format(Math.round(tags.area_3857)) + ' m²' : '';
+          delete tags.area_3857;
           delete tags.osm_id;
           delete tags.osm_type;
           return [
@@ -87,6 +89,8 @@ function processMouseForPopup(e) {
                   .replaceChildren(
                     createElement('span')
                       .append(entity.sourceLayer),
+                    createElement('span')
+                      .append(area),
                     (osmId && osmType) ? createElement('a')
                     .setAttribute('target', '_blank')
                     .setAttribute('href', `https://openstreetmap.org/${osmTypeName[osmType]}/${osmId}`)

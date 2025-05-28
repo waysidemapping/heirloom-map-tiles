@@ -1,6 +1,7 @@
 {
     "version": 8,
     "name": "Rusic Tiles Demo Style",
+    "glyphs": "https://font.americanamap.org/{fontstack}/{range}.pbf",
     "sources": {
        "rustic": {
             "type": "vector",
@@ -134,6 +135,61 @@
             "paint": {
                 "circle-color": "Teal",
                 "circle-opacity": 0.5
+            }
+        },
+        {
+            "id": "line-label",
+            "source": "rustic",
+            "source-layer": "line",
+            "type": "symbol",
+            "layout": {
+                "symbol-placement": "line",
+                "text-size": 11,
+                "text-font": [
+                    "case",
+                    ["has", "waterway"], ["literal", ["Americana-Italic"]],
+                    ["literal", ["Americana-Regular"]]
+                ],
+                "text-field": ["coalesce", ["get", "name"], ["get", "ref"]]
+            },
+            "paint": {
+                "text-color": [
+                    "case",
+                    ["has", "waterway"], "Navy",
+                    "Black"
+                ],
+                "text-halo-color": "White",
+                "text-halo-width": 1.5
+            }
+        },
+        {
+            "id": "point-label",
+            "source": "rustic",
+            "source-layer": "point",
+            "type": "symbol",
+            "layout": {
+                "text-size": 11,
+                "text-font": [
+                    "case",
+                    ["has", "place"], ["literal", ["Americana-Bold"]],
+                    ["==", ["get", "natural"], "water"], ["literal", ["Americana-Italic"]],
+                    ["literal", ["Americana-Regular"]]
+                ],
+                "symbol-sort-key": [
+                    "case",
+                    ["has", "place"], 0,
+                    1
+                ],
+                "text-field": ["coalesce", ["get", "name"], ["get", "ref"]]
+            },
+            "paint": {
+                "text-color": [
+                    "case",
+                    ["==", ["get", "natural"], "water"], "Navy",
+                    "Black"
+                ],
+                "text-halo-color": "White",
+                "text-halo-width": 1.5
             }
         }
     ]

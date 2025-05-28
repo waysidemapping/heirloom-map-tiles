@@ -212,7 +212,7 @@ ref
 religion
 reservation
 residential
-route
+roof:colour
 route
 sailboat
 sanitary_dump_station

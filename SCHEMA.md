@@ -16,91 +16,50 @@ Features in the `line` layer correspond to open ways, or closed ways with certai
 
 ### `point`
 
-Features in the `point` layer correspond to tagged nodes, or the [`ST_PointOnSurface`](https://postgis.net/docs/ST_PointOnSurface.html) of any feature included in the `area` layer. Features that would appear in the `line` layer are not represented in the `point` layer.
+Features in the `point` layer correspond to tagged nodes, or the centerpoints of areas (usually the [pole of inaccessbility](https://en.wikipedia.org/wiki/Pole_of_inaccessibility#Methods_of_calculation)). Features that would appear in the `line` layer are not represented in the `point` layer.
 
 ## Top-level tags
 
-OpenStreetMap has the concept of [top-level tags](https://wiki.openstreetmap.org/wiki/Top-level_tag) which define the main type of each feature. Rustic tiles include only features tagged with a supported top-level tag. Each tag has specific geometry expectations. Negative top-level tags like `building=no` or `highway=no` are ignored and do not qualify features for inclusion.
+OpenStreetMap has the concept of [top-level tags](https://wiki.openstreetmap.org/wiki/Top-level_tag) which define the main type of each feature. Rustic tiles include only features tagged with a supported top-level tag. Each tag has specific geometry expectations.
 
-### Point, line, and area tags
+For performance reasons, negative top-level tag values like `building=no` are NOT ignored. These are sometimes called [troll tags](https://wiki.openstreetmap.org/wiki/Trolltag) in OSM since they may be technically accurate but often break apps. As such, these tags can be deleted from OSM if they cause issues in Rustic tiles.
 
-The following keys are supported on any geometry type (point, line, or area features). Closed ways are assumed to be areas unless they have `area=no` or a specific tag value.
-
-* `aeroway`
-  * `aeroway=jet_bridge/parking_position/runway/taxiway` imply line geometry on closed ways.
-* `golf`
-  * `golf=hole` does NOT imply line geometry on closed ways because this tag is always assumed to be used on open ways. Please add `area=no` to any exceptions.
-* `indoor`
-  * `indoor=yes` is not supported as a top-level tag since it is assumed to be an attribute tag.
-  * `indoor=wall` implies line geometry on closed ways.
-* `natural`
-  * `natural=coastline` features are included only in the `area` layer as aggregate oceans. They do not carry attributes.
-  * `natural=bay/peninsula` features are not included in the `area` layer since they are usually not rendered as areas.
-* `power`
-  * `power=cable/line/minor_line` imply line geometry on closed ways.
-* `telecom`
-  * `telecom=line` implies line geometry on closed ways.
-
-For the following keys, closed ways are assumed to be lines unless they have `area=yes` or a specific tag value.
-
-* `aerialway`
-* `barrier`
-* `highway`
-* `railway`
-* `waterway`
-
-### Point and area only tags
-
-The following keys are supported only on point and area features. Closed ways are assumed to be areas. Open ways, or closed ways with `area=no`, are considered lines and are not included in the tiles.
-
-* `advertising`
-* `amenity`
-  * `amenity=bench/bicycle_parking` on lines is not supported. Consider mapping as a node or area.
-* `building`
-* `club`
-* `craft`
-* `education`
-* `emergency`
-* `healthcare`
-* `historic`
-* `information`
-  * `information` is supported with and without `tourism=information`.
-* `landuse`
-* `leisure`
-  * `leisure=slipway` on lines is not supported. Consider mapping as a node.
-  * `leisure=track` on lines is not supported. Consider using a `highway` tag or mapping as a node or area.
-* `military`
-  * `military=trench` on lines is not supported. Consider using a `barrier` tag.
-* `office`
-* `playground`
-* `public_transport`
-  * `public_transport=platform` on lines is not supported. Consider using a `highway` tag and/or mapping as an area.
-* `shop`
-* `tourism`
-  * `tourism=artwork` on lines is not supported. Consider mapping as a node or area.
-
-For the following key, features are included only in the `point` layer, not the `area` layer.
-
-* `place`
-
-### Area only tags
-
-The following keys are supported only on area features. Closed ways are assumed to be areas. Open ways, or closed ways with `area=no`, are considered lines and are not included in the tiles.
-
-* `area:highway`
-* `building:part`
-
-### Line only tags
-
-The following key is supported only on line features. Closed ways are assumed to be lines unless they have `area=yes`, in which case they are considered areas and are not included in tiles.
-
-* `route`
-
-### Reserved tags
-
-The following keys are collected as top-level tags in the database but are not included in the tiles at this time.
-
-* `boundary`
+| Key | `point` | `line` | `area` | Exceptions |
+|---|---|---|---|---|
+|`aerialway`          |✔︎|✔︎|✔︎|
+|`aeroway`            |✔︎|✔︎|✔︎|
+|`advertising`        |✔︎| |✔︎|
+|`amenity`            |✔︎| |✔︎|
+|`area:highway`       | | |✔︎|
+|`barrier`            |✔︎|✔︎|✔︎|
+|`boundary`           |✔︎| |✔︎| Only `boundary=protected_area/aboriginal_lands` are supported at this time.
+|`building`           |✔︎| |✔︎|
+|`building:part`      | | |✔︎|
+|`club`               |✔︎| |✔︎|
+|`craft`              |✔︎| |✔︎|
+|`education`          |✔︎| |✔︎|
+|`emergency`          |✔︎| |✔︎| `emergency=yes/designated/etc.` are not supported as top-level tags since they are assumed to be access tags.
+|`golf`               |✔︎|✔︎|✔︎|
+|`healthcare`         |✔︎| |✔︎|
+|`highway`            |✔︎|✔︎|✔︎|
+|`historic`           |✔︎| |✔︎|
+|`indoor`             |✔︎|✔︎|✔︎| `indoor=yes` is no supported as a top-level tag since it is assumed to be an attribute tag.
+|`information`        |✔︎| |✔︎|
+|`landuse`            |✔︎| |✔︎|
+|`leisure`            |✔︎| |✔︎|
+|`military`           |✔︎| |✔︎|
+|`natural`            |✔︎|✔︎|✔︎| `natural=coastline` features are included only in the `area` layer as aggregate oceans with no attributes. `natural=bay/peninsula/strait` features are not included in the `area` layer since they are large and usually not rendered.
+|`office`             |✔︎| |✔︎|
+|`place`              |✔︎| | | `place=archipelago` points are positioned at the multipolygon's centroid, which is often outside the feature's bounds.
+|`playground`         |✔︎| |✔︎|
+|`power`              |✔︎|✔︎|✔︎|
+|`public_transport`   |✔︎| |✔︎|
+|`railway`            |✔︎|✔︎|✔︎|
+|`route`              | |✔︎| |
+|`shop`               |✔︎| |✔︎|
+|`telecom`            |✔︎|✔︎|✔︎|
+|`tourism`            |✔︎| |✔︎|
+|`waterway`           |✔︎|✔︎|✔︎|
 
 ### Unsupported tags
 

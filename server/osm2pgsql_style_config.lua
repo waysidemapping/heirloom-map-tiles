@@ -181,11 +181,26 @@ function osm2pgsql.process_relation(object)
     if relType then
         if multipolygon_relation_types[relType] then
             local geom = object:as_multipolygon():transform(3857)
+
+            local largestArea = 0
+            local largestPart = nil
+            for g in geom:geometries() do
+                local area = g:area()
+                if area > largestArea then
+                    largestArea = area
+                    largestPart = g
+                end
+            end
+            local pole_of_inaccessibility = nil
+            if largestPart then
+                pole_of_inaccessibility = largestPart:pole_of_inaccessibility()
+            end
+
             local row = {
                 relation_type = relType,
                 tags = object.tags,
                 geom = geom,
-                pole_of_inaccessibility = geom:pole_of_inaccessibility(),
+                pole_of_inaccessibility = pole_of_inaccessibility,
                 centroid = geom:centroid(),
                 area_3857 = geom:area()
             }

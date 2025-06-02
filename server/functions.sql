@@ -298,24 +298,24 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
   BEGIN
   RETURN QUERY EXECUTE format($fmt$
   WITH
-    closed_ways AS NOT MATERIALIZED (
+    closed_ways AS (
       SELECT id, tags, geom, area_3857, 'w' AS osm_type, is_explicit_area FROM way
       WHERE geom && %2$L
         AND is_closed
         AND NOT is_explicit_line
         AND area_3857 > %3$L
     ),
-    relation_areas AS NOT MATERIALIZED (
+    relation_areas AS (
       SELECT id, tags, geom, area_3857, 'r' AS osm_type, true AS is_explicit_area FROM area_relation
       WHERE geom && %2$L
         AND area_3857 > %3$L
     ),
-    areas AS NOT MATERIALIZED (
+    areas AS (
         SELECT * FROM closed_ways
       UNION ALL
         SELECT * FROM relation_areas
     ),
-    non_buildings AS NOT MATERIALIZED (
+    non_buildings AS (
       SELECT * FROM areas WHERE NOT tags ? 'building'
     ),
     filtered_non_buildings AS (

@@ -662,7 +662,7 @@ CREATE OR REPLACE FUNCTION function_get_line_layer_for_tile(z integer, env_geom 
     SELECT ST_AsMVT(tile, 'line', 4096, 'geom') AS mvt FROM mvt_line_features AS tile
 $line_function_body$;
 
-CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real)
+CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real, max_area real)
   RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
@@ -670,61 +670,27 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     RETURN QUERY EXECUTE format($fmt$
     WITH
     closed_way_centerpoints AS (
-      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857 FROM way
+      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way
       WHERE pole_of_inaccessibility && %2$L
         AND is_closed
-    ),
-    way_area_centerpoints AS (
-        SELECT id, tags, geom, area_3857 FROM closed_way_centerpoints
-        WHERE tags @> 'area => yes'
-      UNION ALL
-        SELECT id, tags, geom, area_3857 FROM closed_way_centerpoints
-        WHERE NOT tags @> 'area => no'
-          AND NOT tags ? 'aerialway'
-          AND NOT tags ? 'barrier'
-          AND NOT tags ? 'highway'
-          AND NOT tags ? 'railway'
-          AND NOT tags ? 'route'
-          AND NOT tags ? 'waterway'
-          AND NOT tags @> 'aeroway => jet_bridge'
-          AND NOT tags @> 'aeroway => parking_position'
-          AND NOT tags @> 'aeroway => runway'
-          AND NOT tags @> 'aeroway => taxiway'
-          AND NOT tags @> 'indoor => wall'
-          AND NOT tags @> 'man_made => breakwater'
-          AND NOT tags @> 'man_made => cutline'
-          AND NOT tags @> 'man_made => dyke'
-          AND NOT tags @> 'man_made => embankment'
-          AND NOT tags @> 'man_made => gantry'
-          AND NOT tags @> 'man_made => goods_conveyor'
-          AND NOT tags @> 'man_made => groyne'
-          AND NOT tags @> 'man_made => pier'
-          AND NOT tags @> 'man_made => pipeline'
-          AND NOT tags @> 'natural => cliff'
-          AND NOT tags @> 'natural => gorge'
-          AND NOT tags @> 'natural => ridge'
-          AND NOT tags @> 'natural => strait'
-          AND NOT tags @> 'natural => tree_row'
-          AND NOT tags @> 'natural => valley'
-          AND NOT tags @> 'power => line'
-          AND NOT tags @> 'power => minor_line'
-          AND NOT tags @> 'power => cable'
-          AND NOT tags @> 'telecom => line'
+        AND NOT is_explicit_line
+        AND area_3857 < %4$L
     ),
     relation_area_centerpoints AS (
-      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857 FROM area_relation
+      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857, true AS is_node_or_explicit_area, 'r' AS osm_type FROM area_relation
       WHERE pole_of_inaccessibility && %2$L
+        AND area_3857 < %4$L
     ),
     nodes AS (
-      SELECT id, tags, geom FROM node
+      SELECT id, tags, geom, NULL::real AS area_3857, true AS is_node_or_explicit_area, 'n' AS osm_type FROM node
       WHERE geom && %2$L
     ),
-    points_in_tile AS (
-        SELECT id, tags, geom, NULL::real AS area_3857, 'n' AS osm_type FROM nodes
+    points_in_tile AS NOT MATERIALIZED (
+        SELECT * FROM nodes
       UNION ALL
-        SELECT id, tags, geom, area_3857, 'w' AS osm_type FROM way_area_centerpoints
+        SELECT * FROM closed_way_centerpoints
       UNION ALL
-        SELECT id, tags, geom, area_3857, 'r' AS osm_type FROM relation_area_centerpoints
+        SELECT * FROM relation_area_centerpoints
     ),
     filtered_points AS (
       SELECT * FROM points_in_tile
@@ -733,10 +699,12 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'aerialway'
+        AND is_node_or_explicit_area
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'aeroway'
+        AND (is_node_or_explicit_area OR tags->'aeroway' NOT IN ('jet_bridge', 'parking_position', 'runway', 'taxiway'))
         AND ((%1$L >= 6
         AND (%1$L >= 12 OR (tags @> 'aeroway => aerodrome' AND tags @> 'aerodrome => international'))
         AND (%1$L >= 15 OR (tags->'aeroway' NOT IN ('gate', 'navigationaid', 'windsock')))
@@ -749,7 +717,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND NOT tags ? 'public_transport'
         AND ((%1$L >= 12
         -- small stuff that may be associated with a larger facility
-        AND (%1$L >= 14 OR (tags->'amenity' NOT IN ('atm', 'bbq', 'bicycle_parking', 'drinking_water', 'fountain', 'parcel_locker', 'post_box', 'public_bookcase', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_disposal')))
+        AND (%1$L >= 14 OR (tags->'amenity' NOT IN ('atm', 'bbq', 'bicycle_parking', 'drinking_water', 'fountain', 'loading_dock', 'parcel_locker', 'post_box', 'public_bookcase', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_disposal')))
         -- smaller stuff
         AND (%1$L >= 15 OR (tags->'amenity' NOT IN ('bench', 'letter_box', 'lounger', 'recycling', 'waste_basket')))
         -- micromapped stuff
@@ -758,6 +726,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'barrier'
+        AND is_node_or_explicit_area
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -788,7 +757,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       SELECT * FROM points_in_tile
       WHERE tags ? 'emergency'
         -- ignore access tags
-        AND NOT tags->'emergency' IN ('designated', 'destination', 'customers', 'no', 'official', 'permissive', 'private', 'unknown', 'yes')
+        AND tags->'emergency' NOT IN ('designated', 'destination', 'customers', 'no', 'official', 'permissive', 'private', 'unknown', 'yes')
         AND (%1$L >= 12 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -801,6 +770,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'highway'
+        AND is_node_or_explicit_area
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -809,8 +779,9 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'indoor'
+        AND (is_node_or_explicit_area OR tags->'indoor' NOT IN ('wall'))
         -- ignore attribute tags
-        AND NOT tags->'indoor' IN ('no', 'unknown', 'yes')
+        AND tags->'indoor' NOT IN ('no', 'unknown', 'yes')
         AND (%1$L >= 18 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -825,11 +796,13 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       SELECT * FROM points_in_tile
       WHERE tags ? 'leisure'
         AND ((%1$L >= 12
-        AND (%1$L >= 15 OR tags->'leisure' NOT IN ('firepit', 'picnic_table', 'sauna'))
+        AND (%1$L >= 14 OR tags->'leisure' NOT IN ('swimming_pool'))
+        AND (%1$L >= 15 OR tags->'leisure' NOT IN ('firepit', 'picnic_table', 'sauna', 'swimming_pool'))
         ) OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'man_made' 
+      WHERE tags ? 'man_made'
+        AND (is_node_or_explicit_area OR tags->'man_made' NOT IN ('breakwater', 'cutline', 'dyke', 'embankment', 'gantry', 'goods_conveyor', 'groyne', 'pier', 'pipeline'))
         AND ((%1$L >= 12
         AND (%1$L >= 15 OR tags->'man_made' NOT IN ('flagpole', 'manhole', 'utility_pole'))
         ) OR area_3857 > %3$L)
@@ -840,6 +813,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'natural'
+        AND (is_node_or_explicit_area OR tags->'natural' NOT IN ('cliff', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
         AND NOT tags ? 'place'
         AND %1$L >= 10
         AND ((%1$L >= 12
@@ -852,6 +826,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'power'
+        AND (is_node_or_explicit_area OR tags->'power' NOT IN ('cable', 'line', 'minor_line'))
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -886,6 +861,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'railway'
+        AND is_node_or_explicit_area
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -894,6 +870,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'telecom'
+        AND (is_node_or_explicit_area OR tags->'telecom' NOT IN ('line'))
         AND (%1$L >= 15 OR area_3857 > %3$L)
     UNION ALL
       SELECT * FROM points_in_tile
@@ -903,6 +880,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'waterway'
+        AND is_node_or_explicit_area
         AND (%1$L >= 15 OR area_3857 > %3$L)
     ),
     relation_area_centroids AS (
@@ -910,12 +888,13 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       WHERE centroid && %2$L
         AND tags @> 'place => archipelago'
         AND area_3857 > %3$L
+        AND area_3857 < %4$L
     )
     SELECT id, tags::jsonb, geom, area_3857, osm_type FROM filtered_points
     UNION ALL
     SELECT id, tags::jsonb, geom, area_3857, 'r' AS osm_type FROM relation_area_centroids
     ;
-    $fmt$, z, env_geom, min_area);
+    $fmt$, z, env_geom, min_area, max_area);
   END;
 $$;
 
@@ -925,7 +904,7 @@ CREATE OR REPLACE FUNCTION function_get_point_layer_for_tile(z integer, env_geom
   AS $point_function_body$
   WITH
     point_features AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_point_features(z, env_geom, (ST_Area(env_geom) * 0.0005)::real)
+      SELECT _id AS id, _tags AS tags, _geom AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_point_features(z, env_geom, (ST_Area(env_geom) * 0.0005)::real, (ST_Area(env_geom) * 16)::real)
     ),
     tagged_point_features AS (
       SELECT
@@ -962,8 +941,8 @@ CREATE OR REPLACE FUNCTION function_get_rustic_tile(z integer, x integer, y inte
         SELECT function_get_area_layer_for_tile(z, env_geom) AS mvt FROM envelope
       UNION ALL
         SELECT function_get_line_layer_for_tile(z, env_geom) AS mvt FROM envelope
-      -- UNION ALL
-      --   SELECT function_get_point_layer_for_tile(z, env_geom) AS mvt FROM envelope
+      UNION ALL
+        SELECT function_get_point_layer_for_tile(z, env_geom) AS mvt FROM envelope
     )
     SELECT string_agg(mvt, ''::bytea) FROM tiles;
 $function_body$;

@@ -791,7 +791,16 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       SELECT * FROM points_in_tile
       WHERE tags ? 'landuse'
         AND %1$L >= 10
-        AND (%1$L >= 12 OR area_3857 > %3$L)
+        -- Most landuse areas are landcover, so don't show points for them at low zooms even if they're big
+        AND (
+          %1$L >= 15
+          OR (
+            -- unless they're probably POIs
+            (tags->'landuse' IN ('allotments', 'cemetery', 'commercial', 'industrial', 'retail')
+            OR tags ? 'name')
+            AND (area_3857 > %3$L OR area_3857 IS NULL)
+          )
+        )
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'leisure'
@@ -816,9 +825,17 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND (is_node_or_explicit_area OR tags->'natural' NOT IN ('cliff', 'gorge', 'ridge', 'strait', 'tree_row', 'valley'))
         AND NOT tags ? 'place'
         AND %1$L >= 10
-        AND ((%1$L >= 12
-        AND (%1$L >= 15 OR tags->'natural' NOT IN ('rock', 'shrub', 'stone', 'termite_mound', 'tree', 'tree_stump'))
-        ) OR area_3857 > %3$L)
+        -- Most natural areas are landcover, so don't show points for them at low zooms even if they're big
+        AND (
+          %1$L >= 15
+          OR (
+            -- unless they're probably POIs
+            (tags->'natural' IN ('bay', 'peninsula', 'strait')
+            OR tags ? 'name')
+            AND area_3857 > %3$L
+          )
+          OR tags->'natural' IN ('peak')
+        )
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'office'

@@ -8,7 +8,7 @@
             "url": "http://localhost:3000/rustic"
         }
     },
-    "sprite": "http://localhost:4001/style/sprites/demo",
+    "sprite": "http://localhost:3366/style/sprites/demo",
     "layers": [
         {
             "id": "background",

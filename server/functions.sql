@@ -569,7 +569,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             OR w.tags @> 'highway => secondary'
         UNION ALL
           SELECT * FROM highways w WHERE 
-            10 >= 12 AND (
+            %1$L >= 12 AND (
               w.tags @> 'highway => secondary_link'
               OR w.tags @> 'highway => tertiary'
               OR w.tags @> 'highway => tertiary_link'
@@ -577,9 +577,9 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
               OR w.tags @> 'highway => unclassified'
             )
         UNION ALL
-          SELECT * FROM highways w WHERE 10 >= 13 AND NOT (w.tags @> 'highway => footway' AND w.tags ? 'footway')
+          SELECT * FROM highways w WHERE %1$L >= 13 AND NOT (w.tags @> 'highway => footway' AND w.tags ? 'footway')
         UNION ALL
-          SELECT * FROM highways w WHERE 10 >= 15
+          SELECT * FROM highways w WHERE %1$L >= 15
         UNION ALL
           SELECT DISTINCT ON (w.id)
             w.id,

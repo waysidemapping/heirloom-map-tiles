@@ -45,7 +45,7 @@
                 ["has", "railway"],
                 ["has", "route"],
                 ["has", "waterway"],
-                ["==", ["get", "boundary"], "administrative"]
+                ["in", "┃administrative┃", ["get", "r.boundary"]]
             ]],
             "paint": {
                 "line-color": "Purple"
@@ -134,7 +134,7 @@
             "source": "rustic",
             "source-layer": "line",
             "type": "line",
-            "filter": ["==", ["get", "boundary"], "administrative"],
+            "filter": ["in", "┃administrative┃", ["get", "r.boundary"]],
             "paint": {
                 "line-color": "Magenta",
                 "line-dasharray": [4, 4]

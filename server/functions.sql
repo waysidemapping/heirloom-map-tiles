@@ -683,8 +683,26 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       UNION ALL
         SELECT * FROM non_highways
         WHERE tags ? 'waterway'
+      ),
+      admin_boundary_lines AS (
+        SELECT w.id,
+          w.tags
+            || hstore('r.boundary.min:admin_level', MIN((r.tags->'admin_level')::int)::text)
+            || hstore('r.boundary.max:admin_level', MAX((r.tags->'admin_level')::int)::text)
+            || hstore('r.boundary', '┃' || STRING_AGG(r.tags -> 'boundary', '┃' ORDER BY r.id) || '┃')
+            || hstore('r.boundary:admin_level', '┃' || STRING_AGG(r.tags -> 'admin_level', '┃' ORDER BY r.id) || '┃') AS tags,
+          w.geom
+        FROM way w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND r.tags @> 'boundary => administrative'
+          AND r.tags ? 'admin_level'
+        GROUP BY w.id, w.tags, w.geom
       )
       SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_lines
+      UNION ALL
+      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM admin_boundary_lines
       UNION ALL
       SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_highways
     ;

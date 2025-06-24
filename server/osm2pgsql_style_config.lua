@@ -77,6 +77,7 @@ local non_area_relation_table = osm2pgsql.define_table({
     },
     indexes = {
         { column = 'centroid', method = 'gist' },
+        { column = 'length_3857', method = 'btree' },
         { column = 'tags', method = 'gin' }
     }
 })

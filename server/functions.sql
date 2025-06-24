@@ -547,18 +547,50 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
     ELSE
       RETURN QUERY EXECUTE format($fmt$
       WITH
-      ways_in_tile AS (
+      ways_in_tile AS NOT MATERIALIZED (
           SELECT id, is_closed, tags, geom, is_explicit_line FROM way
           WHERE geom && %2$L
             AND NOT is_explicit_area
       ),
-      non_highways AS (
+      non_highways AS NOT MATERIALIZED (
         SELECT * FROM ways_in_tile WHERE NOT tags ? 'highway'
       ),
-      highways AS (
-        SELECT * FROM ways_in_tile WHERE tags ? 'highway'
+      highways AS NOT MATERIALIZED (
+        SELECT id, tags, geom FROM ways_in_tile WHERE tags ? 'highway'
       ),
-      filtered_highways AS (
+      filtered_highways AS MATERIALIZED (
+        SELECT * FROM highways w WHERE 
+          w.tags @> 'highway => motorway'
+            OR w.tags @> 'highway => motorway_link'
+            OR w.tags @> 'highway => trunk'
+            OR w.tags @> 'highway => trunk_link'
+            OR w.tags @> 'highway => primary'
+            OR w.tags @> 'highway => primary_link'
+            OR w.tags @> 'highway => secondary'
+        UNION ALL
+          SELECT * FROM highways w WHERE 
+            10 >= 12 AND (
+              w.tags @> 'highway => secondary_link'
+              OR w.tags @> 'highway => tertiary'
+              OR w.tags @> 'highway => tertiary_link'
+              OR w.tags @> 'highway => residential'
+              OR w.tags @> 'highway => unclassified'
+            )
+        UNION ALL
+          SELECT * FROM highways w WHERE 10 >= 13 AND NOT (w.tags @> 'highway => footway' AND w.tags ? 'footway')
+        UNION ALL
+          SELECT * FROM highways w WHERE 10 >= 15
+        UNION ALL
+          SELECT DISTINCT ON (w.id)
+            w.id,
+            w.tags,
+            w.geom
+          FROM highways w
+          LEFT JOIN way_relation_member rw ON w.id = rw.member_id
+          LEFT JOIN non_area_relation r ON rw.relation_id = r.id
+          WHERE r.tags @> 'route => hiking' AND r.length_3857 > 100000
+      ),
+      filtered_and_tagged_highways AS (
         SELECT w.id,
           w.tags
             || CASE WHEN COUNT(r.id) FILTER (WHERE r.tags -> 'route' = 'bus' AND r.tags ? 'name') > 0
@@ -599,31 +631,9 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
               ELSE hstore('', NULL) END
             AS tags,
           w.geom
-        FROM highways w
+        FROM filtered_highways w
         LEFT JOIN way_relation_member rw ON w.id = rw.member_id
         LEFT JOIN non_area_relation r ON rw.relation_id = r.id
-        WHERE
-          (r.tags @> 'route => hiking'
-            AND r.length_3857 > 100000
-          )
-          OR (
-            w.tags @> 'highway => motorway'
-            OR w.tags @> 'highway => motorway_link'
-            OR w.tags @> 'highway => trunk'
-            OR w.tags @> 'highway => trunk_link'
-            OR w.tags @> 'highway => primary'
-            OR w.tags @> 'highway => primary_link'
-            OR w.tags @> 'highway => secondary'
-          )
-          OR (%1$L >= 12 AND (
-            w.tags @> 'highway => secondary_link'
-            OR w.tags @> 'highway => tertiary'
-            OR w.tags @> 'highway => tertiary_link'
-            OR w.tags @> 'highway => residential'
-            OR w.tags @> 'highway => unclassified'
-          ))
-          OR (%1$L >= 13 AND NOT (w.tags @> 'highway => footway' AND w.tags ? 'footway'))
-          OR %1$L >= 15
         GROUP BY w.id, w.tags, w.geom
       ),
       filtered_lines AS (
@@ -704,7 +714,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       UNION ALL
       SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM admin_boundary_lines
       UNION ALL
-      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_highways
+      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_and_tagged_highways
     ;
     $fmt$, z, env_geom, simplify_tolerance);
   END IF;

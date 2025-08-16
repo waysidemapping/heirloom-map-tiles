@@ -401,7 +401,7 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
     UNION ALL
       SELECT * FROM non_buildings
       WHERE tags ? 'natural'
-        AND tags->'natural' NOT IN ('bay', 'peninsula', 'strait', 'coastline', 'water')
+        AND tags->'natural' NOT IN ('bay', 'coastline', 'desert', 'mountain_range', 'peninsula', 'strait', 'water')
         AND %1$L >= 10
     UNION ALL
       SELECT * FROM non_buildings
@@ -1049,7 +1049,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       WHERE tags ? 'natural'
         AND is_node_or_explicit_area
         AND NOT tags ? 'place'
-        AND (tags->'natural' IN ('bay', 'peninsula', 'strait')
+        AND (tags->'natural' IN ('bay', 'desert', 'mountain_range', 'peninsula', 'strait')
             OR tags ? 'name')
         AND %1$L >= 10
     UNION ALL

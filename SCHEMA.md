@@ -48,7 +48,7 @@ For performance reasons, negative top-level tag values like `building=no` are NO
 |`landuse`            |✔︎| |✔︎|Yes|
 |`leisure`            |✔︎| |✔︎|Yes|
 |`military`           |✔︎| |✔︎|Yes|
-|`natural`            |✔︎|✔︎|✔︎|Yes| `natural=coastline` features are included only in the `area` layer as aggregate oceans with no attributes. `natural=bay/peninsula/strait` features are not included in the `area` layer since they are large and usually not rendered.
+|`natural`            |✔︎|✔︎|✔︎|Yes| `natural=coastline` features are included only in the `area` layer as aggregate oceans with no attributes. `natural=bay/desert/mountain_range/peninsula/strait` features are not included in the `area` layer since they are large and usually not rendered.
 |`office`             |✔︎| |✔︎|Yes|
 |`place`              |✔︎| | |Yes| `place=archipelago` points are positioned at the multipolygon's centroid, which is often outside the feature's bounds.
 |`playground`         |✔︎| |✔︎|Yes|

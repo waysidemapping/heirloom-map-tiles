@@ -22,11 +22,11 @@ local way_table = osm2pgsql.define_table({
         { column = 'length_3857', type = 'real', not_null = true },
         { column = 'is_closed', type = 'boolean', not_null = true },
         { column = 'geom', type = 'geometry', proj = '3857', not_null = true },
-        { column = 'pole_of_inaccessibility', type = 'point', proj = '3857' }
+        { column = 'point_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
     },
     indexes = {
         { column = 'geom', method = 'gist' },
-        { column = 'pole_of_inaccessibility', method = 'gist' },
+        { column = 'point_on_surface', method = 'gist' },
         { column = 'area_3857', method = 'btree' },
         { column = 'tags', method = 'gin' }
     }
@@ -54,12 +54,12 @@ local area_relation_table = osm2pgsql.define_table({
         { column = 'tags', type = 'hstore', not_null = true },
         { column = 'area_3857', type = 'real' },
         { column = 'geom', type = 'multipolygon', proj = '3857', not_null = true },
-        { column = 'pole_of_inaccessibility', type = 'point', proj = '3857' },
+        { column = 'point_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
         { column = 'centroid', type = 'point', proj = '3857' }
     },
     indexes = {
         { column = 'geom', method = 'gist' },
-        { column = 'pole_of_inaccessibility', method = 'gist' },
+        { column = 'point_on_surface', method = 'gist' },
         { column = 'centroid', method = 'gist' },
         { column = 'area_3857', method = 'btree' },
         { column = 'tags', method = 'gin' }
@@ -139,13 +139,11 @@ function process_way(object)
     local length_3857 = line_geom:length()
 
     local area_geom = nil
-    local pole_of_inaccessibility = nil
     local area_3857 = 0
     local geom = line_geom
     if object.is_closed then
         -- `area()` always returns 0 for linestrings so we need to convert to polygon
         area_geom = object:as_polygon():transform(3857)
-        pole_of_inaccessibility = area_geom:pole_of_inaccessibility()
         area_3857 = area_geom:area()
         geom = area_geom
     end
@@ -165,7 +163,6 @@ function process_way(object)
         area_3857 = area_3857,
         length_3857 = length_3857,
         is_closed = object.is_closed,
-        pole_of_inaccessibility = pole_of_inaccessibility,
         geom = geom
     })
 end
@@ -195,16 +192,11 @@ function osm2pgsql.process_relation(object)
                     largestPart = g
                 end
             end
-            local pole_of_inaccessibility = nil
-            if largestPart then
-                pole_of_inaccessibility = largestPart:pole_of_inaccessibility()
-            end
 
             local row = {
                 relation_type = relType,
                 tags = object.tags,
                 geom = geom,
-                pole_of_inaccessibility = pole_of_inaccessibility,
                 centroid = geom:centroid(),
                 area_3857 = geom:area()
             }

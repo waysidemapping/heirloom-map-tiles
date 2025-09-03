@@ -758,15 +758,15 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       WHERE geom && %2$L
     ),
     closed_way_centerpoints AS NOT MATERIALIZED (
-      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way
-      WHERE pole_of_inaccessibility && %2$L
+      SELECT id, tags, point_on_surface AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way
+      WHERE point_on_surface && %2$L
         AND is_closed
         AND NOT is_explicit_line
         AND area_3857 < %4$L
     ),
     relation_area_centerpoints AS NOT MATERIALIZED (
-      SELECT id, tags, pole_of_inaccessibility AS geom, area_3857, true AS is_node_or_explicit_area, 'r' AS osm_type FROM area_relation
-      WHERE pole_of_inaccessibility && %2$L
+      SELECT id, tags, point_on_surface AS geom, area_3857, true AS is_node_or_explicit_area, 'r' AS osm_type FROM area_relation
+      WHERE point_on_surface && %2$L
         AND area_3857 < %4$L
     ),
     centerpoints AS NOT MATERIALIZED (

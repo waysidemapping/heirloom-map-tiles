@@ -229,6 +229,11 @@ else
         --output=flex \
         --style="$LUA_STYLE_FILE" \
         "$PLANET_FILE"
+
+    echo "Running post-import SQL queries..."
+    sudo -u postgres psql "$DB_NAME" --command="UPDATE way SET point_on_surface = ST_PointOnSurface(geom) WHERE point_on_surface IS NULL;" &
+    sudo -u postgres psql "$DB_NAME" --command="UPDATE area_relation SET point_on_surface = ST_PointOnSurface(geom) WHERE point_on_surface IS NULL;" &
+    wait
 fi
 
 # Reinstall functions every time in case something changed.

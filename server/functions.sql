@@ -489,7 +489,7 @@ CREATE OR REPLACE FUNCTION function_get_area_layer_for_tile(z integer, env_geom 
     SELECT ST_AsMVT(tile, 'area', 4096, 'geom') AS mvt FROM mvt_area_features AS tile
 $area_function_body$;
 
-CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geometry, simplify_tolerance real)
+CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geometry, min_diagonal_length real, simplify_tolerance real)
   RETURNS TABLE(_id int8, _tags jsonb, _geom geometry)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
@@ -499,9 +499,11 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       WITH
         -- NOT MATERIALIZED is needed so postgres will inline the query and combine our `geom` and `tags` indexes when selecting. Otherwise this can be very slow.
         ways_in_tile AS NOT MATERIALIZED (
-          SELECT id, tags, geom FROM way WHERE geom && %2$L
+          SELECT id, tags, geom, bbox_diagonal_length
+          FROM way
+          WHERE geom && %2$L
         )
-        SELECT NULL::int8 AS id, jsonb_build_object('highway', tags->'highway') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %3$L, true) AS geom
+        SELECT NULL::int8 AS id, jsonb_build_object('highway', tags->'highway') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
         FROM ways_in_tile
         WHERE
           tags @> 'highway => motorway'
@@ -511,7 +513,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       UNION ALL
         SELECT NULL::int8 AS id,
           jsonb_build_object('highway', 'path') AS tags,
-          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %3$L, true) AS geom
+          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
         FROM way w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN non_area_relation r ON rw.relation_id = r.id
@@ -520,7 +522,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           AND r.bbox_diagonal_length > 100000
         GROUP BY w.id, w.tags, w.geom
       UNION ALL
-        SELECT NULL::int8 AS id, jsonb_build_object('railway', tags->'railway', 'usage', tags->'usage') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %3$L, true) AS geom
+        SELECT NULL::int8 AS id, jsonb_build_object('railway', tags->'railway', 'usage', tags->'usage') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
         FROM ways_in_tile
         WHERE tags @> 'railway => rail'
           AND NOT tags ? 'service'
@@ -530,31 +532,34 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           )
           GROUP BY tags->'railway', tags->'usage'
       UNION ALL
-        SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom
+        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom
         FROM ways_in_tile
         WHERE tags @> 'route => ferry'
+          AND bbox_diagonal_length > %3$L * 50.0
       UNION ALL
         SELECT NULL::int8 AS id,
           jsonb_build_object('waterway', 'river') AS tags,
-          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %3$L, true) AS geom
+          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
         FROM way w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN non_area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
           AND w.tags ? 'waterway'
           AND rw.member_role = 'main_stream'
-          AND r.relation_type = 'waterway'
+          AND r.tags @> 'type => waterway'
+          AND w.tags ? 'waterway'
           AND (r.bbox_diagonal_length > 100000 OR w.tags->'order:strahler' IN ('8', '9', '10', '11', '12', '13', '14', '15'))
         GROUP BY w.id, w.tags, w.geom
       ;
-      $fmt$, z, env_geom, simplify_tolerance);
+      $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
     ELSE
       RETURN QUERY EXECUTE format($fmt$
       WITH
       ways_in_tile AS NOT MATERIALIZED (
-          SELECT id, is_closed, tags, geom, is_explicit_line FROM way
+          SELECT id, is_closed, tags, geom, is_explicit_line, bbox_diagonal_length FROM way
           WHERE geom && %2$L
             AND NOT is_explicit_area
+            AND bbox_diagonal_length > %3$L
       ),
       non_highways AS NOT MATERIALIZED (
         SELECT * FROM ways_in_tile WHERE NOT tags ? 'highway'
@@ -631,6 +636,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         SELECT * FROM non_highways
         WHERE tags ? 'route'
           AND %1$L >= 13 OR tags @> 'route => ferry'
+          AND bbox_diagonal_length > %3$L * 50.0
       UNION ALL
         SELECT * FROM non_highways
         WHERE tags ? 'natural'
@@ -665,13 +671,13 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           AND r.tags ? 'admin_level'
         GROUP BY w.id, w.tags, w.geom
       )
-      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_lines
+      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_lines
       UNION ALL
-      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM admin_boundary_lines
+      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM admin_boundary_lines
       UNION ALL
-      SELECT id, tags::jsonb, ST_Simplify(geom, %3$L, true) AS geom FROM filtered_highways
+      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_highways
     ;
-    $fmt$, z, env_geom, simplify_tolerance);
+    $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
   END IF;
   END;
 $$;
@@ -682,7 +688,7 @@ CREATE OR REPLACE FUNCTION function_get_line_layer_for_tile(z integer, env_geom 
   AS $line_function_body$
   WITH
     line_features AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom FROM function_get_line_features(z, env_geom, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
+      SELECT _id AS id, _tags AS tags, _geom AS geom FROM function_get_line_features(z, env_geom, sqrt(2.0 * (ST_Area(env_geom) * 0.000001))::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
     ),
     tagged_line_features AS (
       SELECT

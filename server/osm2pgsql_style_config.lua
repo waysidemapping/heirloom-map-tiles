@@ -20,6 +20,7 @@ local way_table = osm2pgsql.define_table({
         { column = 'is_explicit_line', type = 'boolean', not_null = true },
         { column = 'area_3857', type = 'real', not_null = true },
         { column = 'length_3857', type = 'real', not_null = true },
+        { column = 'bbox_diagonal_length', type = 'real', not_null = true },
         { column = 'is_closed', type = 'boolean', not_null = true },
         { column = 'geom', type = 'geometry', proj = '3857', not_null = true },
         { column = 'point_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
@@ -28,6 +29,7 @@ local way_table = osm2pgsql.define_table({
         { column = 'geom', method = 'gist' },
         { column = 'point_on_surface', method = 'gist' },
         { column = 'area_3857', method = 'btree' },
+        { column = 'bbox_diagonal_length', method = 'btree' },
         { column = 'tags', method = 'gin' }
     }
 })
@@ -50,7 +52,6 @@ local area_relation_table = osm2pgsql.define_table({
     name = 'area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'relation_type', type = 'text', not_null = true },
         { column = 'tags', type = 'hstore', not_null = true },
         { column = 'area_3857', type = 'real' },
         { column = 'geom', type = 'multipolygon', proj = '3857', not_null = true },
@@ -70,13 +71,10 @@ local non_area_relation_table = osm2pgsql.define_table({
     name = 'non_area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'relation_type', type = 'text', not_null = true },
         { column = 'tags', type = 'hstore', not_null = true },
-        { column = 'length_3857', type = 'real' },
         { column = 'bbox_diagonal_length', type = 'real' }
     },
     indexes = {
-        { column = 'length_3857', method = 'btree' },
         { column = 'bbox_diagonal_length', method = 'btree' },
         { column = 'tags', method = 'gin' }
     }
@@ -156,12 +154,15 @@ function process_way(object)
         })
     end
 
+    local minX, minY, maxX, maxY = geom:get_bbox()
+
     way_table:insert({
         tags = object.tags,
         is_explicit_area = object.tags.area == 'yes',
         is_explicit_line = object.tags.area == 'no',
         area_3857 = area_3857,
         length_3857 = length_3857,
+        bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2)),
         is_closed = object.is_closed,
         geom = geom
     })
@@ -194,7 +195,6 @@ function osm2pgsql.process_relation(object)
             end
 
             local row = {
-                relation_type = relType,
                 tags = object.tags,
                 geom = geom,
                 centroid = geom:centroid(),
@@ -206,9 +206,7 @@ function osm2pgsql.process_relation(object)
             local minX, minY, maxX, maxY = geom:get_bbox()
             non_area_relation_table:insert({
                 id = object.id,
-                relation_type = relType,
                 tags = object.tags,
-                length_3857 = object:as_multilinestring():transform(3857):length(),
                 bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2))
             })
         end

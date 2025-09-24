@@ -127,25 +127,45 @@ else
     echo "Installing PostgreSQL $PG_VERSION and PostGIS..."
     sudo apt install -y postgresql-$PG_VERSION postgresql-contrib-$PG_VERSION postgis
 
-    # # Path to postgresql.conf based on version
-    # CONF_PATH="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
+    # Path to postgresql.conf based on version
+    PG_CONF_PATH="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
 
-    # # Ensure the file exists
-    # if [ ! -f "$CONF_PATH" ]; then
-    #     echo "postgresql.conf not found at $CONF_PATH"
-    #     exit 1
-    # fi
+    # Ensure the file exists
+    if [ ! -f "$PG_CONF_PATH" ]; then
+        echo "postgresql.conf not found at $PG_CONF_PATH"
+        exit 1
+    fi
 
-    # # Add 'pg_hint_plan' to shared_preload_libraries if not already present
-    # if ! grep -q "pg_hint_plan" "$CONF_PATH"; then
-    #     echo "Adding pg_hint_plan to shared_preload_libraries in $CONF_PATH"
-    #     # Backup the original file before making changes
+    # Tune postgres config based on osm2pgsql recommendations: https://osm2pgsql.org/doc/manual.html#tuning-the-postgresql-server
+    sudo sed -i "s/^#*shared_buffers.*/shared_buffers = 1GB/" "$PG_CONF_PATH" || echo "shared_buffers = 1GB" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*work_mem.*/work_mem = 50MB/" "$PG_CONF_PATH" || echo "work_mem = 50MB" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*maintenance_work_mem.*/maintenance_work_mem = 10GB/" "$PG_CONF_PATH" || echo "maintenance_work_mem = 10GB" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*autovacuum_work_mem.*/autovacuum_work_mem = 2GB/" "$PG_CONF_PATH" || echo "autovacuum_work_mem = 2GB" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*wal_level.*/wal_level = minimal/" "$PG_CONF_PATH" || echo "wal_level = minimal" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*checkpoint_timeout.*/checkpoint_timeout = 60min/" "$PG_CONF_PATH" || echo "checkpoint_timeout = 60min" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*max_wal_size.*/max_wal_size = 10GB/" "$PG_CONF_PATH" || echo "max_wal_size = 10GB" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*checkpoint_completion_target.*/checkpoint_completion_target = 0.9/" "$PG_CONF_PATH" || echo "checkpoint_completion_target = 0.9" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*max_wal_senders.*/max_wal_senders = 0/" "$PG_CONF_PATH" || echo "max_wal_senders = 0" | sudo tee -a "$PG_CONF_PATH"
+    sudo sed -i "s/^#*random_page_cost.*/random_page_cost = 1.0/" "$PG_CONF_PATH" || echo "random_page_cost = 1.0" | sudo tee -a "$PG_CONF_PATH"
 
-    #     # Use sed to modify the line in postgresql.conf
-    #     sudo sed -i "/^#shared_preload_libraries/a shared_preload_libraries = 'pg_hint_plan'" "$CONF_PATH"
-    # else
-    #     echo "pg_hint_plan is already in shared_preload_libraries"
-    # fi
+    echo "Verifying PostgreSQL config parameters in $PG_CONF_PATH..."
+
+    if grep -Eq "^\s*shared_buffers\s*=\s*1GB" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*work_mem\s*=\s*50MB" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*maintenance_work_mem\s*=\s*10GB" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*autovacuum_work_mem\s*=\s*2GB" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*wal_level\s*=\s*minimal" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*checkpoint_timeout\s*=\s*60min" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*max_wal_size\s*=\s*10GB" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*checkpoint_completion_target\s*=\s*0.9" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*max_wal_senders\s*=\s*0" "$PG_CONF_PATH" && \
+        grep -Eq "^\s*random_page_cost\s*=\s*1.0" "$PG_CONF_PATH"; then
+        echo "All parameters are set correctly."
+    else
+        echo "One or more parameters are missing or incorrect in $PG_CONF_PATH."
+        exit 1
+    fi
+
 fi
 
 # Start PostgreSQL

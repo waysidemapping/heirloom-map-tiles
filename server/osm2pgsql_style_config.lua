@@ -161,7 +161,7 @@ function process_way(object)
 
     way_table:insert({
         tags = object.tags,
-        is_explicit_area = object.tags.area == 'yes',
+        is_explicit_area = object.tags.area == 'yes' or (object.tags.building ~= nil and object.tags.building ~= 'no'),
         is_explicit_line = object.tags.area == 'no',
         area_3857 = area_3857,
         length_3857 = length_3857,

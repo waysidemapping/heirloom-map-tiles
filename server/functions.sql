@@ -1006,14 +1006,12 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM large_centerpoints
       WHERE tags ? 'man_made'
-        AND is_node_or_explicit_area
     UNION ALL
       SELECT * FROM large_centerpoints
       WHERE tags ? 'miltary'
     UNION ALL
       SELECT * FROM large_centerpoints
       WHERE tags ? 'natural'
-        AND is_node_or_explicit_area
         AND NOT tags ? 'place'
         AND (tags->'natural' IN ('bay', 'desert', 'mountain_range', 'peninsula', 'strait')
             OR tags ? 'name')

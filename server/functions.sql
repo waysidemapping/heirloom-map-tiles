@@ -640,7 +640,6 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       UNION ALL
         SELECT * FROM non_highways
         WHERE tags ? 'natural'
-          AND NOT tags @> 'natural => coastline'
           AND (NOT is_closed OR is_explicit_line)
           AND %1$L >= 13
       UNION ALL

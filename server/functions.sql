@@ -819,6 +819,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         -- ignore access tags
         AND tags->'emergency' NOT IN ('designated', 'destination', 'customers', 'no', 'official', 'permissive', 'private', 'unknown', 'yes')
         AND %1$L >= 12
+        AND (%1$L >= 14 OR (tags->'emergency' NOT IN ('fire_hydrant')))
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'golf'

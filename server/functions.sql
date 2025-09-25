@@ -398,7 +398,6 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       SELECT * FROM non_buildings
       WHERE (tags @> 'boundary => protected_area'
         OR tags @> 'boundary => aboriginal_lands')
-        AND NOT tags ? 'leisure'
     UNION ALL
       SELECT * FROM non_buildings
       WHERE tags ? 'building:part'
@@ -849,7 +848,6 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
           tags @> 'boundary => protected_area'
           OR tags @> 'boundary => aboriginal_lands'
         )
-        AND NOT tags ? 'leisure'
         AND %1$L >= 12
     UNION ALL
       SELECT * FROM points_in_tile
@@ -956,7 +954,6 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'playground'
-        AND NOT tags ? 'leisure'
         AND %1$L >= 18
     UNION ALL
       SELECT * FROM points_in_tile

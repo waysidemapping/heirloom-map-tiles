@@ -26,12 +26,12 @@ For performance reasons, negative top-level tag values like `building=no` are NO
 
 | OSM key | `point` layer | `line` layer | `area` layer | Closed way implies area | Irregularities |
 |---|---|---|---|---|---|
-|`aerialway`          |✔︎|✔︎|✔︎|No|
-|`aeroway`            |✔︎|✔︎|✔︎|No|
+|`aerialway`          |✔︎|✔︎|✔︎|No |
+|`aeroway`            |✔︎|✔︎|✔︎|No |
 |`advertising`        |✔︎| |✔︎|Yes|
 |`amenity`            |✔︎| |✔︎|Yes|
 |`area:highway`       | | |✔︎|Yes|
-|`barrier`            |✔︎|✔︎|✔︎|No|
+|`barrier`            |✔︎|✔︎|✔︎|No |
 |`boundary`           |✔︎| |✔︎|Yes| Only `boundary=protected_area/aboriginal_lands` are supported at this time.
 |`building`           |✔︎| |✔︎|Yes|
 |`building:part`      | | |✔︎|Yes|

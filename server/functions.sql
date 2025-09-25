@@ -455,10 +455,10 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       SELECT * FROM non_buildings
       WHERE tags ? 'natural'
         AND tags->'natural' NOT IN (
-          -- Exclude natural areas features that usually aren't rendered
-          'bay', 'desert', 'mountain_range', 'peninsula', 'strait',
+          -- Exclude natural features that usually aren't rendered as areas
+          'bay', 'coastline', 'desert', 'mountain_range', 'peninsula', 'strait',
           -- and features that are handled separately
-          'coastline', 'water'
+          'water'
         )
         AND %1$L >= 10
     UNION ALL
@@ -852,7 +852,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'building'
-        AND NOT tags ?| ARRAY['advertising', 'aerialway', 'aeroway', 'amenity', 'barrier', 'boundary', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'highway', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'place', 'playground', 'power', 'public_transport', 'railway', 'route', 'shop', 'telecom', 'tourism', 'waterway']
+        AND NOT tags ?| ARRAY['aerialway', 'aeroway', 'advertising', 'amenity', 'barrier', 'boundary', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'highway', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'place', 'playground', 'power', 'public_transport', 'railway', 'route', 'shop', 'telecom', 'tourism', 'waterway']
         AND %1$L >= 17
     UNION ALL
       SELECT * FROM points_in_tile

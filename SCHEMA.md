@@ -41,7 +41,7 @@ For performance reasons, negative top-level tag values like `building=no` are NO
 |`emergency`          |✔︎| |✔︎|Yes| `emergency=yes/designated/etc.` are not supported as top-level tags since they are assumed to be access tags.
 |`golf`               |✔︎|✔︎|✔︎|Yes|
 |`healthcare`         |✔︎| |✔︎|Yes|
-|`highway`            |✔︎|✔︎|✔︎|No|
+|`highway`            |✔︎|✔︎|✔︎|No |
 |`historic`           |✔︎| |✔︎|Yes|
 |`indoor`             |✔︎|✔︎|✔︎|Yes| `indoor=yes` is no supported as a top-level tag since it is assumed to be an attribute tag.
 |`information`        |✔︎| |✔︎|Yes|
@@ -53,14 +53,14 @@ For performance reasons, negative top-level tag values like `building=no` are NO
 |`office`             |✔︎| |✔︎|Yes|
 |`place`              |✔︎| | |Yes| `place=archipelago` points are positioned at the multipolygon's centroid, which is often outside the feature's bounds.
 |`playground`         |✔︎| |✔︎|Yes|
-|`power`              |✔︎|✔︎|✔︎|No|
+|`power`              |✔︎|✔︎|✔︎|No |
 |`public_transport`   |✔︎| |✔︎|Yes|
-|`railway`            |✔︎|✔︎|✔︎|No|
-|`route`              | |✔︎| |No|
+|`railway`            |✔︎|✔︎|✔︎|No |
+|`route`              | |✔︎| |No |
 |`shop`               |✔︎| |✔︎|Yes|
-|`telecom`            |✔︎|✔︎|✔︎|No|
+|`telecom`            |✔︎|✔︎|✔︎|No |
 |`tourism`            |✔︎| |✔︎|Yes|
-|`waterway`           |✔︎|✔︎|✔︎|No|
+|`waterway`           |✔︎|✔︎|✔︎|No |
 
 ### Unsupported tags
 

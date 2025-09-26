@@ -322,7 +322,7 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       UNION ALL
         SELECT * FROM areas
         WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
-        AND is_explicit_area
+          AND is_explicit_area
       UNION ALL
         SELECT * FROM areas
         WHERE tags @> 'boundary => protected_area'
@@ -368,11 +368,11 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
     UNION ALL
       SELECT * FROM areas
       WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
-      AND is_explicit_area
+        AND is_explicit_area
     UNION ALL
       SELECT * FROM areas
       WHERE tags ?| ARRAY['area:highway', 'building:part', 'indoor', 'playground']
-      AND %1$L >= 18
+        AND %1$L >= 18
     UNION ALL
       SELECT * FROM areas
       WHERE tags @> 'boundary => protected_area'
@@ -501,9 +501,6 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             AND NOT is_explicit_area
             AND bbox_diagonal_length > %3$L
       ),
-      non_highways AS NOT MATERIALIZED (
-        SELECT * FROM ways_in_tile WHERE NOT tags ? 'highway'
-      ),
       highways AS NOT MATERIALIZED (
         SELECT id, tags, geom FROM ways_in_tile WHERE tags ? 'highway'
       ),
@@ -540,57 +537,35 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           WHERE r.tags @> 'route => hiking' AND r.bbox_diagonal_length > 100000
       ),
       filtered_lines AS (
-        SELECT * FROM non_highways
-        WHERE tags ? 'aerialway'
-          AND %1$L >= 13
+        SELECT * FROM ways_in_tile
+        WHERE tags ?| ARRAY['waterway']
       UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'aeroway'
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'barrier'
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'golf'
-          AND (NOT is_closed OR is_explicit_line)
-          AND %1$L >= 15
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'indoor'
-          AND (NOT is_closed OR is_explicit_line)
-          AND %1$L >= 18
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'man_made'
-          AND (NOT is_closed OR is_explicit_line)
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'power'
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'route'
-          AND %1$L >= 13 OR tags @> 'route => ferry'
+        SELECT * FROM ways_in_tile
+        WHERE tags @> 'route => ferry'
           AND bbox_diagonal_length > %3$L * 50.0
       UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'natural'
-          AND (NOT is_closed OR is_explicit_line)
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM non_highways
+        SELECT * FROM ways_in_tile
         WHERE tags ? 'railway'
-          AND (%1$L >= 13 OR NOT tags ? 'service')
+          AND NOT tags ? 'service'
       UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'telecom'
+        SELECT * FROM ways_in_tile
+        WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'power', 'railway', 'route', 'telecom', 'waterway']
           AND %1$L >= 13
       UNION ALL
-        SELECT * FROM non_highways
-        WHERE tags ? 'waterway'
+        SELECT * FROM ways_in_tile
+        WHERE tags ?| ARRAY['man_made', 'natural']
+          AND is_explicit_line
+          AND %1$L >= 13
+      UNION ALL
+        SELECT * FROM ways_in_tile
+        WHERE tags ?| ARRAY['golf']
+          AND is_explicit_line
+          AND %1$L >= 15
+      UNION ALL
+        SELECT * FROM ways_in_tile
+        WHERE tags ?| ARRAY['indoor']
+          AND is_explicit_line
+          AND %1$L >= 18
       ),
       admin_boundary_lines AS (
         SELECT w.id,
@@ -608,11 +583,11 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           AND r.tags ? 'admin_level'
         GROUP BY w.id, w.tags, w.geom
       )
-      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_lines
+        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_lines
       UNION ALL
-      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM admin_boundary_lines
+        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM admin_boundary_lines
       UNION ALL
-      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_highways
+        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_highways
     ;
     $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
   END IF;
@@ -689,13 +664,28 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     ),
     points_filtered_by_zoom AS (
       SELECT * FROM points_in_tile
-      WHERE tags ? 'advertising'
+      WHERE tags ?| ARRAY['advertising', 'club', 'craft', 'education', 'healthcare', 'historic', 'information', 'miltary', 'office', 'shop']
         AND %1$L >= 12
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'aerialway'
+      WHERE (
+          tags @> 'boundary => protected_area'
+          OR tags @> 'boundary => aboriginal_lands'
+        )
+        AND %1$L >= 12
+    UNION ALL
+      SELECT * FROM points_in_tile
+      WHERE tags ?| ARRAY['golf', 'landuse']
+        AND %1$L >= 15
+    UNION ALL
+      SELECT * FROM points_in_tile
+      WHERE tags ?| ARRAY['aerialway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
         AND is_node_or_explicit_area
         AND %1$L >= 15
+    UNION ALL
+      SELECT * FROM points_in_tile
+      WHERE tags ?| ARRAY['indoor', 'playground']
+        AND %1$L >= 18
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'aeroway'
@@ -718,67 +708,14 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND (%1$L >= 18 OR (tags->'amenity' NOT IN ('parking_space')))
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'barrier'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE (
-          tags @> 'boundary => protected_area'
-          OR tags @> 'boundary => aboriginal_lands'
-        )
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'building'
         AND NOT tags ?| ARRAY['aerialway', 'aeroway', 'advertising', 'amenity', 'barrier', 'boundary', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'highway', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'place', 'playground', 'power', 'public_transport', 'railway', 'route', 'shop', 'telecom', 'tourism', 'waterway']
         AND %1$L >= 17
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'club'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'craft'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'education'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'emergency'
         AND %1$L >= 12
         AND (%1$L >= 14 OR (tags->'emergency' NOT IN ('fire_hydrant')))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'golf'
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'healthcare'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'highway'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'historic'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'indoor'
-        AND %1$L >= 18
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'information'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'landuse'
-        AND %1$L >= 15
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'leisure'
@@ -792,25 +729,12 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND (%1$L >= 15 OR tags->'man_made' NOT IN ('flagpole', 'manhole', 'utility_pole', 'surveillance'))
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'miltary'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'natural'
         AND %1$L >= 10
         AND (
           %1$L >= 15
           OR tags->'natural' IN ('peak')
         )
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'office'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'power'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'place'
@@ -828,10 +752,6 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         )
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'playground'
-        AND %1$L >= 18
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags @> 'public_transport => station'
         AND %1$L >= 12
     UNION ALL
@@ -841,139 +761,26 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND %1$L >= 15
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'railway'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'shop'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'telecom'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'tourism'
         AND NOT tags @> 'tourism => information'
         AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'waterway'
-        AND is_node_or_explicit_area
-        AND %1$L >= 15
     ),
     points_filtered_by_area AS (
       SELECT * FROM large_centerpoints
-      WHERE tags ? 'advertising'
+      WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'leisure', 'man_made', 'military', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']
     UNION ALL
       SELECT * FROM large_centerpoints
-      WHERE tags ? 'aerialway'
+      WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
         AND is_node_or_explicit_area
     UNION ALL
       SELECT * FROM large_centerpoints
-      WHERE tags ? 'aeroway'
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'amenity'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'barrier'
-        AND is_node_or_explicit_area
+      WHERE tags ?| ARRAY['building', 'landuse', 'natural']
+        -- Assume named features are POIs, otherwise landcover
+        AND tags ? 'name'
     UNION ALL
       SELECT * FROM large_centerpoints
       WHERE tags @> 'boundary => protected_area'
         OR tags @> 'boundary => aboriginal_lands'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'building'
-        AND NOT tags ?| ARRAY['advertising', 'aerialway', 'aeroway', 'amenity', 'barrier', 'boundary', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'highway', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'place', 'playground', 'power', 'public_transport', 'railway', 'route', 'shop', 'telecom', 'tourism', 'waterway']
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'club'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'craft'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'education'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'emergency'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'golf'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'healthcare'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'highway'
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'historic'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'indoor'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'information'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'landuse'
-        -- Assume named `landuse` areas are POIs, otherwise landcover
-        AND tags ? 'name'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'leisure'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'man_made'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'miltary'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'natural'
-        -- Assume named `natural` areas are POIs, otherwise landcover
-        AND tags ? 'name'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'office'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'power'
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags->'place' IN ('island', 'islet')
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'playground'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'public_transport'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'railway'
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'shop'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'telecom'
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'tourism'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ? 'waterway'
-        AND is_node_or_explicit_area
     ),
     relation_area_centroids AS (
       SELECT id, tags, centroid AS geom, area_3857, 'r' AS osm_type FROM area_relation

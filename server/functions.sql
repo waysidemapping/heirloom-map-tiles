@@ -699,13 +699,21 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND %1$L >= 12
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['golf', 'landuse']
+      WHERE tags @> 'public_transport => station'
+        AND %1$L >= 12
+    UNION ALL
+      SELECT * FROM points_in_tile
+      WHERE tags ?| ARRAY['golf', 'landuse', 'natural', 'public_transport']
         AND %1$L >= 15
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ?| ARRAY['aerialway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
         AND is_node_or_explicit_area
         AND %1$L >= 15
+    UNION ALL
+      SELECT * FROM points_in_tile
+      WHERE tags ?| ARRAY['building']
+        AND %1$L >= 17
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ?| ARRAY['indoor', 'playground']
@@ -732,11 +740,6 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND (%1$L >= 18 OR (tags->'amenity' NOT IN ('parking_space')))
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'building'
-        AND NOT tags ?| ARRAY['aerialway', 'aeroway', 'advertising', 'amenity', 'barrier', 'boundary', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'highway', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'place', 'playground', 'power', 'public_transport', 'railway', 'route', 'shop', 'telecom', 'tourism', 'waterway']
-        AND %1$L >= 17
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'emergency'
         AND %1$L >= 12
         AND (%1$L >= 14 OR (tags->'emergency' NOT IN ('fire_hydrant')))
@@ -753,27 +756,11 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND (%1$L >= 15 OR tags->'man_made' NOT IN ('flagpole', 'manhole', 'utility_pole', 'surveillance'))
     UNION ALL
       SELECT * FROM points_in_tile
-      WHERE tags ? 'natural'
-        AND %1$L >= 10
-        AND (
-          %1$L >= 15
-          OR tags->'natural' IN ('peak')
-        )
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'public_transport => station'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'public_transport'
-      AND NOT tags @> 'public_transport => station'
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
       WHERE tags ? 'tourism'
         AND NOT tags @> 'tourism => information'
         AND %1$L >= 12
     ),
+    -- Assume any feature that is relatively large at the given zoom level is important and should receive a centerpoint
     points_filtered_by_area AS (
       SELECT * FROM large_centerpoints
       WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'leisure', 'man_made', 'military', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']

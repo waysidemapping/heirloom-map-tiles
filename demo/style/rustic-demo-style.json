@@ -101,7 +101,7 @@
             "paint": {
                 "line-color": [
                     "case",
-                    ["in", ["get", "highway"], ["literal", ["path", "footway", "cycleway", "bridleway", "cooridor"]]], "DarkGreen",
+                    ["in", ["get", "highway"], ["literal", ["bridleway", "corridor", "cycleway",  "footway", "path", "steps"]]], "DarkGreen",
                     "Red"
                 ],
                 "line-opacity": 1

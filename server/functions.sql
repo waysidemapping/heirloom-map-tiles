@@ -737,27 +737,19 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'amenity'
-        AND NOT tags ? 'education'
-        AND NOT tags ? 'healthcare'
-        AND NOT tags ? 'public_transport'
         AND %1$L >= 12
-        -- small stuff that may be associated with a larger facility
-        AND (%1$L >= 14 OR (tags->'amenity' NOT IN ('atm', 'bbq', 'bicycle_parking', 'drinking_water', 'fountain', 'loading_dock', 'parcel_locker', 'post_box', 'public_bookcase', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_disposal')))
-        -- smaller stuff
-        AND (%1$L >= 15 OR (tags->'amenity' NOT IN ('bench', 'letter_box', 'lounger', 'recycling', 'waste_basket')))
-        -- micromapped stuff
+        AND (%1$L >= 15 OR (tags->'amenity' NOT IN ('atm', 'bbq', 'bench', 'bicycle_parking', 'drinking_water', 'fountain', 'letter_box', 'loading_dock', 'lounger', 'parcel_locker', 'post_box', 'public_bookcase', 'recycling', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_basket', 'waste_disposal')))
         AND (%1$L >= 18 OR (tags->'amenity' NOT IN ('parking_space')))
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'emergency'
         AND %1$L >= 12
-        AND (%1$L >= 14 OR (tags->'emergency' NOT IN ('fire_hydrant')))
+        AND (%1$L >= 15 OR (tags->'emergency' NOT IN ('fire_hydrant')))
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'leisure'
         AND %1$L >= 12
-        AND (%1$L >= 14 OR tags->'leisure' NOT IN ('swimming_pool'))
-        AND (%1$L >= 15 OR tags->'leisure' NOT IN ('firepit', 'picnic_table', 'sauna'))
+        AND (%1$L >= 15 OR tags->'leisure' NOT IN ('firepit', 'picnic_table', 'sauna', 'swimming_pool'))
     UNION ALL
       SELECT * FROM points_in_tile
       WHERE tags ? 'man_made'

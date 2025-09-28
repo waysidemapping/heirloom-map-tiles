@@ -448,13 +448,16 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           FROM way
           WHERE geom && %2$L
         )
-        SELECT NULL::int8 AS id, jsonb_build_object('highway', tags->'highway') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
+        SELECT
+          NULL::int8 AS id,
+          jsonb_build_object({{LOW_ZOOM_LINE_JSONB_KEY_MAPPINGS}}) AS tags,
+          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
         FROM ways_in_tile
         WHERE
           tags @> 'highway => motorway'
           OR tags @> 'highway => trunk'
           OR tags @> 'highway => primary'
-        GROUP BY tags->'highway'
+        GROUP BY tags
       UNION ALL
         SELECT NULL::int8 AS id,
           jsonb_build_object('highway', 'path') AS tags,

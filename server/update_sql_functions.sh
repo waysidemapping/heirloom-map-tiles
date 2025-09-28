@@ -14,12 +14,14 @@ JSONB_PREFIXES=$(grep -v '^$' "$APP_DIR/helper_data/output_key_prefixes.txt" | a
 FIELD_DEFS="$(grep -v '^$' "$APP_DIR/helper_data/output_keys.txt" | sed 's/.*/"&":"String"/' | paste -sd, -)"
 FIELD_DEFS="$FIELD_DEFS,$(grep -v '^$' "$APP_DIR/helper_data/output_key_prefixes.txt" | sed 's/.*/"&\*":"String"/' | paste -sd, -)"
 
+LOW_ZOOM_LINE_JSONB_KEY_MAPPINGS="$(grep -v '^$' "$APP_DIR/helper_data/low_zoom_line_keys.txt" | sed "s/.*/'&', tags->'&'/" | paste -sd, -)"
 LOW_ZOOM_AREA_JSONB_KEY_MAPPINGS="$(grep -v '^$' "$APP_DIR/helper_data/low_zoom_area_keys.txt" | sed "s/.*/'&', tags->'&'/" | paste -sd, -)"
 
 SQL_CONTENT=$(<"$SQL_FUNCTIONS_FILE")
 SQL_CONTENT=${SQL_CONTENT//\{\{JSONB_KEYS\}\}/$JSONB_KEYS}
 SQL_CONTENT=${SQL_CONTENT//\{\{JSONB_PREFIXES\}\}/$JSONB_PREFIXES}
 SQL_CONTENT=${SQL_CONTENT//\{\{FIELD_DEFS\}\}/$FIELD_DEFS}
+SQL_CONTENT=${SQL_CONTENT//\{\{LOW_ZOOM_LINE_JSONB_KEY_MAPPINGS\}\}/$LOW_ZOOM_LINE_JSONB_KEY_MAPPINGS}
 SQL_CONTENT=${SQL_CONTENT//\{\{LOW_ZOOM_AREA_JSONB_KEY_MAPPINGS\}\}/$LOW_ZOOM_AREA_JSONB_KEY_MAPPINGS}
 
 sudo -u postgres psql "$DB_NAME" -v ON_ERROR_STOP=1 <<< "$SQL_CONTENT"

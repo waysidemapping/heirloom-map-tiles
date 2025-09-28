@@ -1,0 +1,17 @@
+aerialway
+aeroway
+barrier
+building
+expressway
+highway
+intermittent
+man_made
+natural
+power
+railway
+route
+service
+telecom
+toll
+usage
+waterway

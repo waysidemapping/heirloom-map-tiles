@@ -318,7 +318,11 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
     ),
     filtered_areas AS (
         SELECT * FROM areas
-        WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'public_transport', 'shop', 'tourism']
+        WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'information', 'landuse', 'leisure', 'man_made', 'military', 'office', 'public_transport', 'shop', 'tourism']
+      UNION ALL
+        SELECT * FROM areas
+        WHERE tags ? 'natural'
+          AND NOT tags @> 'natural => coastline'
       UNION ALL
         SELECT * FROM areas
         WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
@@ -362,9 +366,13 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       UNION ALL
         SELECT * FROM relation_areas
     ),
-    filtered_non_buildings AS (
+    filtered_areas AS (
       SELECT * FROM areas
-      WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'information', 'landuse', 'leisure', 'man_made', 'military', 'natural', 'office', 'public_transport', 'shop', 'tourism']
+      WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'information', 'landuse', 'leisure', 'man_made', 'military', 'office', 'public_transport', 'shop', 'tourism']
+    UNION ALL
+      SELECT * FROM areas
+      WHERE tags ? 'natural'
+        AND NOT tags @> 'natural => coastline'
     UNION ALL
       SELECT * FROM areas
       WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
@@ -377,10 +385,7 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       SELECT * FROM areas
       WHERE tags @> 'boundary => protected_area'
         OR tags @> 'boundary => aboriginal_lands'
-    ),
-    filtered_areas AS (
-        SELECT * FROM filtered_non_buildings
-      UNION ALL
+    UNION ALL
         SELECT * FROM areas
         WHERE tags ? 'building'
           -- only show really big buildings at low zooms
@@ -555,6 +560,10 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         SELECT * FROM ways_in_tile
         WHERE tags ?| ARRAY['man_made', 'natural']
           AND is_explicit_line
+          AND %1$L >= 13
+      UNION ALL
+        SELECT * FROM ways_in_tile
+        WHERE tags @> 'natural => coastline'
           AND %1$L >= 13
       UNION ALL
         SELECT * FROM ways_in_tile

@@ -251,7 +251,7 @@ else
         "$PLANET_FILE"
 
     echo "Running post-import SQL queries..."
-    sudo -u postgres psql "$DB_NAME" --command="UPDATE way SET point_on_surface = ST_PointOnSurface(geom) WHERE point_on_surface IS NULL;" &
+    sudo -u postgres psql "$DB_NAME" --command="UPDATE way SET point_on_surface = ST_PointOnSurface(geom) WHERE is_closed AND point_on_surface IS NULL;" &
     sudo -u postgres psql "$DB_NAME" --command="UPDATE area_relation SET point_on_surface = ST_PointOnSurface(geom) WHERE point_on_surface IS NULL;" &
     wait
 fi

@@ -56,11 +56,7 @@
             "source": "rustic",
             "source-layer": "line",
             "type": "line",
-            "filter": [
-                "any",
-                ["has", "barrier"],
-                ["in", ["get", "waterway"], ["literal", ["dam", "weir"]]]
-            ],
+            "filter": ["has", "barrier"],
             "paint": {
                 "line-color": "Black",
                 "line-opacity": 0.5
@@ -71,11 +67,7 @@
             "source": "rustic",
             "source-layer": "line",
             "type": "line",
-            "filter": [
-                "all",
-                ["has", "waterway"],
-                ["!", ["in", ["get", "waterway"], ["literal", ["dam", "weir"]]]]
-            ],
+            "filter": ["has", "waterway"],
             "paint": {
                 "line-color": "Blue",
                 "line-opacity": 0.5

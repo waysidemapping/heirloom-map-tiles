@@ -20,6 +20,8 @@ local way_table = osm2pgsql.define_table({
         { column = 'is_explicit_line', type = 'boolean', not_null = true },
         { column = 'area_3857', type = 'real', not_null = true },
         { column = 'length_3857', type = 'real', not_null = true },
+        { column = 'bbox', type = 'text', sql_type = 'GEOMETRY(Polygon, 3857)' },
+        { column = 'bbox_centerpoint_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
         { column = 'bbox_diagonal_length', type = 'real', not_null = true },
         { column = 'is_closed', type = 'boolean', not_null = true },
         { column = 'geom', type = 'geometry', proj = '3857', not_null = true },
@@ -27,6 +29,8 @@ local way_table = osm2pgsql.define_table({
     },
     indexes = {
         { column = 'geom', method = 'gist' },
+        { column = 'bbox', method = 'gist' },
+        { column = 'bbox_centerpoint_on_surface', method = 'gist' },
         { column = 'point_on_surface', method = 'gist' },
         { column = 'area_3857', method = 'btree' },
         { column = 'bbox_diagonal_length', method = 'btree' },
@@ -70,9 +74,15 @@ local non_area_relation_table = osm2pgsql.define_table({
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
     columns = {
         { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'geom', type = 'geometrycollection', proj = '3857' },
+        { column = 'bbox', type = 'text', sql_type = 'GEOMETRY(Polygon, 3857)' },
+        { column = 'bbox_centerpoint_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
         { column = 'bbox_diagonal_length', type = 'real' }
     },
     indexes = {
+        { column = 'geom', method = 'gist' },
+        { column = 'bbox', method = 'gist' },
+        { column = 'bbox_centerpoint_on_surface', method = 'gist' },
         { column = 'bbox_diagonal_length', method = 'btree' },
         { column = 'tags', method = 'gin' }
     }
@@ -125,7 +135,14 @@ local multipolygon_relation_types = {
     boundary = true
 }
 
--- only runs on tagged nodes
+-- Format the bounding box we get from calling get_bbox() on the parameter
+-- in the way needed for the PostgreSQL/PostGIS box2d type.
+function format_bbox(minX, minY, maxX, maxY)
+    if minX == nil then
+        return nil
+    end
+    return 'POLYGON(('.. tostring(minX) .. ' '.. tostring(minY) .. ', '.. tostring(minX) .. ' '.. tostring(maxY) .. ', '.. tostring(maxX) .. ' '.. tostring(maxY) .. ', '.. tostring(maxX) .. ' '.. tostring(minY) .. ', '.. tostring(minX) .. ' '.. tostring(minY) .. '))'
+end
 function osm2pgsql.process_node(object)
     node_table:insert({
         tags = object.tags,
@@ -156,13 +173,13 @@ function process_way(object)
     end
 
     local minX, minY, maxX, maxY = geom:get_bbox()
-
     way_table:insert({
         tags = object.tags,
         is_explicit_area = object.is_closed and (object.tags.area == 'yes' or object.tags.building ~= nil),
         is_explicit_line = not object.is_closed or object.tags.area == 'no',
         area_3857 = area_3857,
         length_3857 = length_3857,
+        bbox = format_bbox(minX, minY, maxX, maxY),
         bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2)),
         is_closed = object.is_closed,
         geom = geom
@@ -207,6 +224,8 @@ function osm2pgsql.process_relation(object)
             non_area_relation_table:insert({
                 id = object.id,
                 tags = object.tags,
+                geom = geom,
+                bbox = format_bbox(minX, minY, maxX, maxY),
                 bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2))
             })
         end

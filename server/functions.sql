@@ -786,10 +786,20 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       SELECT * FROM large_centerpoints
       WHERE tags @> 'boundary => protected_area'
         OR tags @> 'boundary => aboriginal_lands'
+    ),
+    route_centerpoints AS (
+      SELECT id, tags, bbox_centerpoint_on_surface AS geom, NULL::real AS area_3857, 'r' AS osm_type FROM non_area_relation
+      WHERE bbox_centerpoint_on_surface && %2$L
+        AND tags ? 'route'
+        AND bbox_diagonal_length > sqrt(2.0 * %3$L)
+        AND bbox_diagonal_length < sqrt(2.0 * %4$L)
+        AND %1$L >= 4
     )
       SELECT id, tags::jsonb, geom, area_3857, osm_type FROM points_filtered_by_zoom
     UNION ALL
       SELECT id, tags::jsonb, geom, area_3857, osm_type FROM points_filtered_by_area
+    UNION ALL
+      SELECT id, tags::jsonb, geom, area_3857, osm_type FROM route_centerpoints
     ;
     $fmt$, z, env_geom, min_area, max_area);
   END;

@@ -3,9 +3,12 @@
 set -x # echo on
 set -e # Exit if any command fails
 
-PLANET_URL="https://download.geofabrik.de/north-america/us/washington-latest.osm.pbf"
-# "https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf"
+ARCHITECTURE=$(uname -m)
 SCRATCH_DIR="/var/tmp/app"
+
+PLANET_FILE="$SCRATCH_DIR/planet-latest.osm.pbf"
+PLANET_URL="https://download.geofabrik.de/north-america/us/new-york-latest.osm.pbf"
+# "https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf"
 
 PG_VERSION="17"
 DB_NAME="osm"
@@ -14,11 +17,13 @@ TABLE_PREFIX="planet_osm"
 OSM2PGSQL_VERSION="2.2.0"
 OSM2PGSQL_DIR="/usr/local/osm2pgsql"
 LUA_STYLE_FILE="osm2pgsql_style_config.lua"
-PLANET_FILE="$SCRATCH_DIR/planet-latest.osm.pbf"
+
 FLAT_NODES_FILE="$SCRATCH_DIR/flatnodes"
 
 MARTIN_CONFIG_FILE="martin_config.yaml"
-MARTIN_VERSION="0.18.1"
+MARTIN_VERSION="0.19.2"
+
+[[ "$ARCHITECTURE" == "x86_64" || "$ARCHITECTURE" == "aarch64" ]] && echo "Architecture: $ARCHITECTURE" || { echo "Unsupported architecture: $ARCHITECTURE"; exit 1; }
 
 # Create helper directory
 if [ ! -d "$SCRATCH_DIR" ]; then
@@ -34,32 +39,25 @@ else
     echo "User '$DB_USER' created."
 fi
 
+# We need to install needed commands here instead of in the Docker image since
+# we may not always deploy via the Docker image
+
 # Install wget: needed to fetch planetfile
-if command -v wget > /dev/null; then
+if command -v wget &> /dev/null; then
     echo "wget is already installed."
 else
     echo "wget not found, installing..."
-    
-    # Update package list and install wget
-    sudo apt update
-    sudo apt install -y wget
-
-    # Verify if wget is installed
-    if command -v wget > /dev/null; then
-        echo "wget successfully installed."
-    else
-        echo "Failed to install wget."
-        exit 1
-    fi
+    sudo apt update && sudo apt install -y wget
+    command -v wget &> /dev/null && echo "wget successfully installed." || { echo "Failed to install wget."; exit 1; }
 fi
 
 # Install git: needed to clone repos
-if ! command -v git &> /dev/null; then
-    echo "Git is not installed. Installing..."
-    sudo apt update
-    sudo apt install -y git
+if command -v git &> /dev/null; then
+    echo "git is already installed."
 else
-    echo "Git is installed."
+    echo "git not found, installing..."
+    sudo apt update && sudo apt install -y git
+    command -v git &> /dev/null && echo "git successfully installed." || { echo "Failed to install git."; exit 1; }
 fi
 
 # Need to do this every time unfortunately

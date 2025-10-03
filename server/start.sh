@@ -263,7 +263,7 @@ else
         "$PLANET_FILE"
 
     echo "Running post-import SQL queries..."
-    sudo -u postgres psql "$DB_NAME" --command="UPDATE way SET point_on_surface = ST_PointOnSurface(geom) WHERE is_closed AND point_on_surface IS NULL;" &
+    sudo -u postgres psql "$DB_NAME" --command="UPDATE way_no_explicit_line SET point_on_surface = ST_PointOnSurface(geom) WHERE point_on_surface IS NULL;" &
     sudo -u postgres psql "$DB_NAME" --command="UPDATE area_relation r SET label_point = n.geom FROM node n WHERE n.id = r.label_node_id AND r.label_point IS NULL; UPDATE area_relation SET label_point = ST_PointOnSurface(geom) WHERE label_point IS NULL;" &
     sudo -u postgres psql "$DB_NAME" --command="UPDATE non_area_relation SET bbox_centerpoint_on_surface = ST_ClosestPoint(geom, ST_Centroid(bbox)) WHERE bbox_centerpoint_on_surface IS NULL;" &
     wait

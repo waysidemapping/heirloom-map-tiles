@@ -40,7 +40,7 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
       FROM coastline, envelope env
       WHERE geom && env_geom
         -- Ignore very small islands. This will not work if the island is mapped using more than one way.
-        AND ("area_3857" = 0 OR "area_3857" > min_area)
+        AND (area_3857 IS NULL OR area_3857 > min_area)
     ),
     -- Create continuous coastline segments by merging the linestrings together based on their endpoints.
     coastline_merged_segments AS (
@@ -300,10 +300,8 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
   RETURN QUERY EXECUTE format($fmt$
    WITH
     closed_ways AS (
-      SELECT id, tags, geom, area_3857, 'w' AS osm_type, is_explicit_area FROM way
+      SELECT id, tags, geom, area_3857, 'w' AS osm_type, is_explicit_area FROM way_no_explicit_line
       WHERE geom && %2$L
-        AND is_closed
-        AND NOT is_explicit_line
         AND area_3857 > %3$L
     ),
     relation_areas AS (
@@ -350,10 +348,8 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
   RETURN QUERY EXECUTE format($fmt$
   WITH
     closed_ways AS (
-      SELECT id, tags, geom, area_3857, 'w' AS osm_type, is_explicit_area FROM way
+      SELECT id, tags, geom, area_3857, 'w' AS osm_type, is_explicit_area FROM way_no_explicit_line
       WHERE geom && %2$L
-        AND is_closed
-        AND NOT is_explicit_line
         AND area_3857 > %3$L
     ),
     relation_areas AS (
@@ -445,7 +441,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         -- NOT MATERIALIZED is needed so postgres will inline the query and combine our `geom` and `tags` indexes when selecting. Otherwise this can be very slow.
         ways_in_tile AS NOT MATERIALIZED (
           SELECT id, tags, geom, bbox_diagonal_length
-          FROM way
+          FROM way_no_explicit_area
           WHERE geom && %2$L
         )
         SELECT
@@ -462,7 +458,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         SELECT NULL::int8 AS id,
           jsonb_build_object('highway', 'path') AS tags,
           ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
-        FROM way w
+        FROM way_no_explicit_area w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN non_area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
@@ -488,7 +484,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         SELECT NULL::int8 AS id,
           jsonb_build_object('waterway', 'river') AS tags,
           ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
-        FROM way w
+        FROM way_no_explicit_area w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN non_area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
@@ -504,9 +500,8 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       RETURN QUERY EXECUTE format($fmt$
       WITH
       ways_in_tile AS NOT MATERIALIZED (
-          SELECT id, is_closed, tags, geom, is_explicit_line, bbox_diagonal_length FROM way
+          SELECT id, tags, geom, is_explicit_line, bbox_diagonal_length FROM way_no_explicit_area
           WHERE geom && %2$L
-            AND NOT is_explicit_area
             AND bbox_diagonal_length > %3$L
       ),
       highways AS NOT MATERIALIZED (
@@ -680,10 +675,8 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       WHERE geom && %2$L
     ),
     closed_way_centerpoints AS (
-      SELECT id, tags, point_on_surface AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way
+      SELECT id, tags, point_on_surface AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way_no_explicit_line
       WHERE point_on_surface && %2$L
-        AND is_closed
-        AND NOT is_explicit_line
         AND area_3857 < %4$L
     ),
     relation_area_centerpoints AS (

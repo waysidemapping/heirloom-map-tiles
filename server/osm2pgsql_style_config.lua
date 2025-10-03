@@ -11,38 +11,69 @@ local node_table = osm2pgsql.define_table({
     }
 })
 
+-- Contains all ways (needed to select relation members)
 local way_table = osm2pgsql.define_table({
     name = 'way',
     ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
     columns = {
         { column = 'tags', type = 'hstore', not_null = true },
-        { column = 'geom', type = 'geometry', proj = '3857', not_null = true },
-        { column = 'is_closed', type = 'boolean', not_null = true },
-        { column = 'is_explicit_area', type = 'boolean', not_null = true },
+        { column = 'geom', type = 'linestring', proj = '3857', not_null = true }
+    },
+    indexes = {
+        { column = 'tags', method = 'gin' },
+        { column = 'geom', method = 'gist' }
+    }
+})
+
+-- Contains: all open ways; all closed ways except those explicitly tagged as areas.
+-- Alert! Most closed ways are duplicated in `way_no_explicit_line`.
+local way_no_explicit_area_table = osm2pgsql.define_table({
+    name = 'way_no_explicit_area',
+    ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
+    columns = {
+        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'geom', type = 'linestring', proj = '3857', not_null = true },
         { column = 'is_explicit_line', type = 'boolean', not_null = true },
+        { column = 'bbox_diagonal_length', type = 'real', not_null = true }
+    },
+    indexes = {
+        { column = 'tags', method = 'gin' },
+        { column = 'geom', method = 'gist' },
+        { column = 'is_explicit_line', method = 'btree' },
+        { column = 'bbox_diagonal_length', method = 'btree' }
+    }
+})
+
+-- Contains: no open ways; all closed ways except those explicitly tagged as lines.
+-- Alert! Most closed ways are duplicated in `way_no_explicit_area`.
+local way_no_explicit_line_table = osm2pgsql.define_table({
+    name = 'way_no_explicit_line',
+    ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
+    columns = {
+        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'geom', type = 'polygon', proj = '3857', not_null = true },
+        { column = 'is_explicit_area', type = 'boolean', not_null = true },
         { column = 'area_3857', type = 'real', not_null = true },
-    --    { column = 'length_3857', type = 'real', not_null = true },
-    --    { column = 'bbox', type = 'text', sql_type = 'GEOMETRY(Polygon, 3857)' },
         { column = 'bbox_diagonal_length', type = 'real', not_null = true },
         { column = 'point_on_surface', sql_type = 'GEOMETRY(Point, 3857)', create_only = true }
     },
     indexes = {
         { column = 'tags', method = 'gin' },
         { column = 'geom', method = 'gist' },
+        { column = 'is_explicit_area', method = 'btree' },
         { column = 'area_3857', method = 'btree' },
-    --    { column = 'bbox', method = 'gist' },
         { column = 'bbox_diagonal_length', method = 'btree' },
         { column = 'point_on_surface', method = 'gist' }
     }
 })
+
 -- we need super fast coastline selection so store them redundantly here
 local coastline_table = osm2pgsql.define_table({
     name = 'coastline',
     ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
     columns = {
         { column = 'geom', type = 'linestring', proj = '3857', not_null = true },
-        { column = 'area_3857', type = 'real', not_null = true },
-    --    { column = 'length_3857', type = 'real', not_null = true }
+        { column = 'area_3857', type = 'real' }
     },
     indexes = {
         { column = 'geom', method = 'gist' },
@@ -152,49 +183,56 @@ function osm2pgsql.process_node(object)
     })
 end
 
-function process_way(object)
-    local line_geom = object:as_linestring():transform(3857)
- --   local length_3857 = line_geom:length()
+-- runs only on tagged ways or ways specified by `select_relation_members`
+function osm2pgsql.process_way(object)
+    local is_explicit_line = not object.is_closed or object.tags.area == 'no'
+    local is_explicit_area = object.is_closed and (object.tags.area == 'yes' or object.tags.building ~= nil)
 
-    local area_geom = nil
-    local area_3857 = 0
-    local geom = line_geom
-    if object.is_closed then
-        -- `area()` always returns 0 for linestrings so we need to convert to polygon
-        area_geom = object:as_polygon():transform(3857)
+    local line_geom = object:as_linestring():transform(3857)
+    local minX, minY, maxX, maxY = line_geom:get_bbox()
+    local bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2))
+
+    local area_3857 = nil
+
+    if not is_explicit_area then
+        way_no_explicit_area_table:insert({
+            tags = object.tags,
+            geom = line_geom,
+            is_explicit_line = is_explicit_line,
+            bbox_diagonal_length = bbox_diagonal_length
+        })
+    end
+
+    if not is_explicit_line then
+        local area_geom = object:as_polygon():transform(3857)
         area_3857 = area_geom:area()
-        geom = area_geom
+        way_no_explicit_line_table:insert({
+            tags = object.tags,
+            geom = area_geom,
+            is_explicit_area = is_explicit_area,
+            area_3857 = area_3857,
+            bbox_diagonal_length = bbox_diagonal_length
+        })
     end
 
     if object.tags.natural == 'coastline' then
         coastline_table:insert({
-            area_3857 = area_3857,
- --           length_3857 = length_3857,
-            geom = line_geom
+            geom = line_geom,
+            area_3857 = area_3857
         })
     end
 
-    local minX, minY, maxX, maxY = geom:get_bbox()
     way_table:insert({
         tags = object.tags,
-        geom = geom,
-        is_closed = object.is_closed,
-        is_explicit_area = object.is_closed and (object.tags.area == 'yes' or object.tags.building ~= nil),
-        is_explicit_line = not object.is_closed or object.tags.area == 'no',
-        area_3857 = area_3857,
-      --  length_3857 = length_3857,
-      --  bbox = format_bbox(minX, minY, maxX, maxY),
-        bbox_diagonal_length = math.sqrt(math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2))
+        geom = line_geom
     })
 end
-
--- runs only on tagged ways or ways specified by `select_relation_members`
-function osm2pgsql.process_way(object)
-    process_way(object)
-end
--- relation member may be untagged and we want to include them
+-- relation member may be untagged and but we still want to include them
 function osm2pgsql.process_untagged_way(object)
-    process_way(object)
+    way_table:insert({
+        tags = object.tags,
+        geom = object:as_linestring():transform(3857)
+    })
 end
 
 -- only runs on tagged relations

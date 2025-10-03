@@ -637,6 +637,37 @@ CREATE OR REPLACE FUNCTION function_get_line_layer_for_tile(z integer, env_geom 
     SELECT ST_AsMVT(tile, 'line', 4096, 'geom') AS mvt FROM mvt_line_features AS tile
 $line_function_body$;
 
+CREATE OR REPLACE FUNCTION function_compute_point_tags_score(tags hstore)
+RETURNS INTEGER
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $function_body$
+  SELECT
+    (CASE WHEN tags ? 'name' THEN 100000 ELSE 0 END) +
+    (CASE WHEN tags ? 'wikidata' THEN 10000 ELSE 0 END) +
+    (CASE WHEN tags ?| ARRAY['boundary', 'place']
+      THEN 800
+      WHEN tags @> 'public_transport => station'
+        OR tags @> 'aeroway => aerodrome'
+      THEN 500
+      WHEN tags->'natural' IN ('peak', 'water')
+      THEN 100
+      WHEN tags ?| ARRAY['aerialway', 'golf', 'highway', 'information', 'landuse', 'natural', 'public_transport', 'power', 'railway', 'telecom', 'waterway']
+        OR tags->'aeroway' IN ('gate', 'windsock')
+        OR tags->'amenity' IN ('atm', 'bbq', 'bench', 'bicycle_parking', 'drinking_water', 'fountain', 'letter_box', 'loading_dock', 'lounger', 'parcel_locker', 'parking_entrance', 'post_box', 'public_bookcase', 'recycling', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_basket', 'waste_disposal')
+        OR tags->'emergency' IN ('fire_hydrant')
+        OR tags->'leisure' IN ('firepit', 'picnic_table', 'sauna', 'swimming_pool')
+        OR tags->'man_made' IN ('flagpole', 'manhole', 'utility_pole', 'surveillance')
+      THEN -100
+      WHEN tags ?| ARRAY['barrier', 'building', 'indoor', 'playground']
+        OR tags->'aeroway' IN ('navigationaid')
+        OR tags->'amenity' IN ('parking_space')
+        OR tags->'natural' IN ('tree', 'tree_stump', 'shrub')
+      THEN -500
+      ELSE 0
+    END) +
+    (CASE WHEN tags->'access' IN ('discouraged', 'no', 'private') THEN -10 ELSE 0 END)
+$function_body$;
+
 CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real, max_area real)
   RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
@@ -644,143 +675,75 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     BEGIN
     RETURN QUERY EXECUTE format($fmt$
     WITH
-    nodes AS NOT MATERIALIZED (
+    nodes AS (
       SELECT id, tags, geom, NULL::real AS area_3857, true AS is_node_or_explicit_area, 'n' AS osm_type FROM node
       WHERE geom && %2$L
     ),
-    closed_way_centerpoints AS NOT MATERIALIZED (
+    closed_way_centerpoints AS (
       SELECT id, tags, point_on_surface AS geom, area_3857, is_explicit_area AS is_node_or_explicit_area, 'w' AS osm_type FROM way
       WHERE point_on_surface && %2$L
         AND is_closed
         AND NOT is_explicit_line
         AND area_3857 < %4$L
     ),
-    relation_area_centerpoints AS NOT MATERIALIZED (
+    relation_area_centerpoints AS (
       SELECT id, tags, label_point AS geom, area_3857, true AS is_node_or_explicit_area, 'r' AS osm_type FROM area_relation
       WHERE label_point && %2$L
         AND area_3857 < %4$L
     ),
-    centerpoints AS NOT MATERIALIZED (
+    points_in_tile AS (
+        SELECT * FROM nodes
+      UNION ALL
         SELECT * FROM closed_way_centerpoints
       UNION ALL
         SELECT * FROM relation_area_centerpoints
     ),
-    large_centerpoints AS MATERIALIZED (
-        SELECT * FROM centerpoints
-        WHERE area_3857 > %3$L
-    ),
-    points_in_tile AS NOT MATERIALIZED (
-        SELECT * FROM nodes
-      UNION ALL
-        SELECT * FROM centerpoints
-    ),
-    points_filtered_by_zoom AS (
+    filtered_points_in_tile AS (
       SELECT * FROM points_in_tile
-      WHERE tags @> 'place => continent'
+      WHERE (
+        tags @> 'place => continent'
         OR tags @> 'place => ocean'
         OR tags @> 'place => sea'
         OR tags @> 'place => country'
         OR tags @> 'place => state'
         OR tags @> 'place => province'
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'place => city'
+      ) OR (
+        tags @> 'place => city'
         AND %1$L >= 5
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'place => town'
+      ) OR (
+        tags @> 'place => town'
         AND %1$L >= 7
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'place => village'
+      ) OR (
+        tags @> 'place => village'
         AND %1$L >= 9
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'natural => peak'
-        AND %1$L >= 10
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['advertising', 'club', 'craft', 'education', 'healthcare', 'historic', 'information', 'miltary', 'office', 'place', 'shop']
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE (
+      ) OR (
+        tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'leisure', 'man_made', 'miltary', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']
+        AND (%1$L >= 10 OR area_3857 > %3$L)
+      ) OR (
+        -- Assume named features are POIs, otherwise landcover
+        tags ?| ARRAY['landuse', 'natural']
+        AND (
+          %1$L >= 10
+          OR (
+            tags ? 'name'
+            AND area_3857 > %3$L
+          )
+        )
+      ) OR (
+        tags ? 'building'
+        AND tags ? 'name'
+        AND (%1$L >= 10 OR area_3857 > %3$L)
+      ) OR (
+        (
           tags @> 'boundary => protected_area'
           OR tags @> 'boundary => aboriginal_lands'
         )
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags @> 'public_transport => station'
-        AND %1$L >= 12
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['golf', 'landuse', 'natural', 'public_transport']
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['aerialway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
+        AND (%1$L >= 10 OR area_3857 > %3$L)
+      ) OR (
+        tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
         AND is_node_or_explicit_area
-        AND %1$L >= 15
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['building']
-        AND %1$L >= 17
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ?| ARRAY['indoor', 'playground']
-        AND %1$L >= 18
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'aeroway'
-        AND is_node_or_explicit_area
-        AND %1$L >= 6
-        AND (%1$L >= 12 OR (tags @> 'aeroway => aerodrome' AND tags @> 'aerodrome => international'))
-        AND (%1$L >= 15 OR (tags->'aeroway' NOT IN ('gate', 'navigationaid', 'windsock')))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'amenity'
-        AND %1$L >= 12
-        AND (%1$L >= 15 OR (tags->'amenity' NOT IN ('atm', 'bbq', 'bench', 'bicycle_parking', 'drinking_water', 'fountain', 'letter_box', 'loading_dock', 'lounger', 'parcel_locker', 'post_box', 'public_bookcase', 'recycling', 'telephone', 'ticket_validator', 'toilets', 'shower', 'vending_machine', 'waste_basket', 'waste_disposal')))
-        AND (%1$L >= 18 OR (tags->'amenity' NOT IN ('parking_space')))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'emergency'
-        AND %1$L >= 12
-        AND (%1$L >= 15 OR (tags->'emergency' NOT IN ('fire_hydrant')))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'leisure'
-        AND %1$L >= 12
-        AND (%1$L >= 15 OR tags->'leisure' NOT IN ('firepit', 'picnic_table', 'sauna', 'swimming_pool'))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'man_made'
-        AND %1$L >= 12
-        AND (%1$L >= 15 OR tags->'man_made' NOT IN ('flagpole', 'manhole', 'utility_pole', 'surveillance'))
-    UNION ALL
-      SELECT * FROM points_in_tile
-      WHERE tags ? 'tourism'
-        AND NOT tags @> 'tourism => information'
-        AND %1$L >= 12
-    ),
-    -- Assume any feature that is relatively large at the given zoom level is important and should receive a centerpoint
-    points_filtered_by_area AS (
-      SELECT * FROM large_centerpoints
-      WHERE tags ?| ARRAY['advertising', 'amenity', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'leisure', 'man_made', 'military', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
-        AND is_node_or_explicit_area
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags ?| ARRAY['building', 'landuse', 'natural']
-        -- Assume named features are POIs, otherwise landcover
-        AND tags ? 'name'
-    UNION ALL
-      SELECT * FROM large_centerpoints
-      WHERE tags @> 'boundary => protected_area'
-        OR tags @> 'boundary => aboriginal_lands'
+        AND (%1$L >= 10 OR area_3857 > %3$L)
+      )
     ),
     route_centerpoints AS (
       SELECT id, tags, bbox_centerpoint_on_surface AS geom, NULL::real AS area_3857, 'r' AS osm_type FROM non_area_relation
@@ -789,10 +752,27 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         AND bbox_diagonal_length > sqrt(2.0 * %3$L)
         AND bbox_diagonal_length < sqrt(2.0 * %4$L)
         AND %1$L >= 4
+    ),
+    cell_grid AS (
+      SELECT
+        ST_XMin(%2$L::geometry) AS grid_origin_x,
+        ST_YMin(%2$L::geometry) AS grid_origin_y,
+        ((ST_XMax(%2$L::geometry) - ST_XMin(%2$L::geometry)) / 8.0) AS cell_width,
+        ((ST_YMax(%2$L::geometry) - ST_YMin(%2$L::geometry)) / 8.0) AS cell_height
+    ),
+    scored_and_gridded AS (
+      SELECT *,
+        function_compute_point_tags_score(tags) AS score,
+        FLOOR((ST_X(geom) - cg.grid_origin_x) / cg.cell_width)::int AS cell_x,
+        FLOOR((ST_Y(geom) - cg.grid_origin_y) / cg.cell_height)::int AS cell_y
+      FROM filtered_points_in_tile, cell_grid cg
+    ),
+    ranked AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY cell_x, cell_y ORDER BY score DESC, id ASC) AS rank
+      FROM scored_and_gridded
     )
-      SELECT id, tags::jsonb, geom, area_3857, osm_type FROM points_filtered_by_zoom
-    UNION ALL
-      SELECT id, tags::jsonb, geom, area_3857, osm_type FROM points_filtered_by_area
+      SELECT id, tags::jsonb, geom, area_3857, osm_type FROM ranked
+      WHERE rank <= 150
     UNION ALL
       SELECT id, tags::jsonb, geom, area_3857, osm_type FROM route_centerpoints
     ;

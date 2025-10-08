@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # set -x # echo on
-set -e # Exit if any command fails
 
 APP_DIR="/usr/src/app"
 SQL_FUNCTIONS_FILE="sql/functions.sql"

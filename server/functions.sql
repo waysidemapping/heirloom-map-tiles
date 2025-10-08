@@ -438,163 +438,186 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
     IF z < 10 THEN
       RETURN QUERY EXECUTE format($fmt$
       WITH
-        -- NOT MATERIALIZED is needed so postgres will inline the query and combine our `geom` and `tags` indexes when selecting. Otherwise this can be very slow.
-        ways_in_tile AS NOT MATERIALIZED (
+        ways_in_tile AS (
           SELECT id, tags, geom, bbox_diagonal_length
           FROM way_no_explicit_area
           WHERE geom && %2$L
-        )
-        SELECT
-          NULL::int8 AS id,
-          jsonb_build_object({{LOW_ZOOM_LINE_JSONB_KEY_MAPPINGS}}) AS tags,
-          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
-        FROM ways_in_tile
-        WHERE
-          tags @> 'highway => motorway'
-          OR tags @> 'highway => trunk'
-          OR tags @> 'highway => primary'
-        GROUP BY tags
-      UNION ALL
-        SELECT NULL::int8 AS id,
-          jsonb_build_object('highway', 'path') AS tags,
-          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
-        FROM way_no_explicit_area w
-        JOIN way_relation_member rw ON w.id = rw.member_id
-        JOIN non_area_relation r ON rw.relation_id = r.id
-        WHERE w.geom && %2$L
-          AND r.tags @> 'route => hiking'
-          AND r.bbox_diagonal_length > 100000
-        GROUP BY w.id, w.tags, w.geom
-      UNION ALL
-        SELECT NULL::int8 AS id, jsonb_build_object('railway', tags->'railway', 'usage', tags->'usage') AS tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
-        FROM ways_in_tile
-        WHERE tags @> 'railway => rail'
-          AND NOT tags ? 'service'
-          AND (
-            tags @> 'usage => main'
-            OR tags @> 'usage => branch'
+        ),
+        filtered_ways AS (
+          SELECT id, tags, geom FROM ways_in_tile
+          WHERE (
+            tags @> 'highway => motorway'
+            OR tags @> 'highway => trunk'
+            OR tags @> 'highway => primary'
+          ) OR (
+            tags @> 'railway => rail'
+            AND NOT tags ? 'service'
+            AND (
+              tags @> 'usage => main'
+              OR tags @> 'usage => branch'
+            )
+          ) OR (
+            tags @> 'route => ferry'
+            AND bbox_diagonal_length > %3$L * 50.0
           )
-          GROUP BY tags->'railway', tags->'usage'
-      UNION ALL
-        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom
-        FROM ways_in_tile
-        WHERE tags @> 'route => ferry'
-          AND bbox_diagonal_length > %3$L * 50.0
-      UNION ALL
-        SELECT NULL::int8 AS id,
-          jsonb_build_object('waterway', 'river') AS tags,
-          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(w.geom))), %4$L, true) AS geom
-        FROM way_no_explicit_area w
-        JOIN way_relation_member rw ON w.id = rw.member_id
-        JOIN non_area_relation r ON rw.relation_id = r.id
-        WHERE w.geom && %2$L
-          AND w.tags ? 'waterway'
-          AND rw.member_role = 'main_stream'
-          AND r.tags @> 'type => waterway'
-          AND w.tags ? 'waterway'
-          AND (r.bbox_diagonal_length > 100000 OR w.tags->'order:strahler' IN ('8', '9', '10', '11', '12', '13', '14', '15'))
-        GROUP BY w.id, w.tags, w.geom
+        ),
+        filtered_ways_from_relations AS (
+          SELECT w.id, w.tags, w.geom FROM ways_in_tile w
+          JOIN way_relation_member rw ON w.id = rw.member_id
+          JOIN non_area_relation r ON rw.relation_id = r.id
+          WHERE (
+            r.tags @> 'route => hiking'
+            AND r.bbox_diagonal_length > 100000
+          ) OR (
+            w.tags ? 'waterway'
+            AND rw.member_role = 'main_stream'
+            AND r.tags @> 'type => waterway'
+            AND (
+              r.bbox_diagonal_length > 100000
+              -- OR w.tags->'order:strahler' IN ('8', '9', '10', '11', '12', '13', '14', '15')
+            )
+          )
+        ),
+        admin_boundary_lines AS (
+          SELECT w.id,
+            FIRST_VALUE(w.tags) OVER (PARTITION BY w.id)
+              || hstore('r.boundary.min:admin_level', MIN((r.tags->'admin_level')::int)::text)
+              || hstore('r.boundary.max:admin_level', MAX((r.tags->'admin_level')::int)::text)
+              || hstore('r.boundary', '┃' || STRING_AGG(r.tags -> 'boundary', '┃' ORDER BY r.id) || '┃')
+              || hstore('r.boundary:admin_level', '┃' || STRING_AGG(r.tags -> 'admin_level', '┃' ORDER BY r.id) || '┃') AS tags,
+            FIRST_VALUE(w.geom) OVER (PARTITION BY w.id) AS geom
+          FROM way w
+          JOIN way_relation_member rw ON w.id = rw.member_id
+          JOIN area_relation r ON rw.relation_id = r.id
+          WHERE w.geom && %2$L
+            AND r.tags @> 'boundary => administrative'
+            AND (
+              r.tags @> 'admin_level => 1'
+              OR r.tags @> 'admin_level => 2'
+              OR r.tags @> 'admin_level => 3'
+              OR r.tags @> 'admin_level => 4'
+              OR r.tags @> 'admin_level => 5'
+            )
+          GROUP BY w.id
+        ),
+        all_filtered_lines AS (
+            SELECT * FROM filtered_ways
+          UNION ALL
+            SELECT * FROM filtered_ways_from_relations
+          UNION ALL
+            SELECT * FROM admin_boundary_lines
+        ),
+        with_filtered_tags AS (
+          SELECT
+            id,
+            (
+              SELECT jsonb_object_agg(e.key, e.value)
+              FROM each(tags) AS e(key, value)
+              WHERE
+                key IN ({{LOW_ZOOM_LINE_JSONB_KEYS}})
+                {{LOW_ZOOM_LINE_JSONB_PREFIXES}}
+                OR key LIKE 'r.%%'
+            ) AS tags,
+            geom
+          FROM all_filtered_lines
+        )
+        SELECT  NULL::int8 AS id, tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom
+        FROM with_filtered_tags
+        GROUP BY tags
       ;
       $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
     ELSE
       RETURN QUERY EXECUTE format($fmt$
       WITH
-      ways_in_tile AS NOT MATERIALIZED (
+      ways_in_tile AS (
           SELECT id, tags, geom, is_explicit_line, bbox_diagonal_length FROM way_no_explicit_area
           WHERE geom && %2$L
             AND bbox_diagonal_length > %3$L
       ),
-      highways AS NOT MATERIALIZED (
-        SELECT id, tags, geom FROM ways_in_tile WHERE tags ? 'highway'
-      ),
-      filtered_highways AS MATERIALIZED (
-        SELECT * FROM highways w WHERE 
-          w.tags @> 'highway => motorway'
-            OR w.tags @> 'highway => motorway_link'
-            OR w.tags @> 'highway => trunk'
-            OR w.tags @> 'highway => trunk_link'
-            OR w.tags @> 'highway => primary'
-            OR w.tags @> 'highway => primary_link'
-            OR w.tags @> 'highway => secondary'
-        UNION ALL
-          SELECT * FROM highways w WHERE 
-            %1$L >= 12 AND (
-              w.tags @> 'highway => secondary_link'
-              OR w.tags @> 'highway => tertiary'
-              OR w.tags @> 'highway => tertiary_link'
-              OR w.tags @> 'highway => residential'
-              OR w.tags @> 'highway => unclassified'
-            )
-        UNION ALL
-          SELECT * FROM highways w WHERE %1$L >= 13 AND NOT (w.tags @> 'highway => footway' AND w.tags ? 'footway')
-        UNION ALL
-          SELECT * FROM highways w WHERE %1$L >= 15
-        UNION ALL
-          SELECT DISTINCT ON (w.id)
-            w.id,
-            w.tags,
-            w.geom
-          FROM highways w
-          LEFT JOIN way_relation_member rw ON w.id = rw.member_id
-          LEFT JOIN non_area_relation r ON rw.relation_id = r.id
-          WHERE r.tags @> 'route => hiking' AND r.bbox_diagonal_length > 100000
+      filtered_highways AS (
+        SELECT DISTINCT ON (w.id)
+          w.id,
+          w.tags,
+          w.geom
+        FROM ways_in_tile w
+        LEFT JOIN way_relation_member rw ON w.id = rw.member_id
+        LEFT JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.tags ? 'highway' AND r.tags @> 'route => hiking' AND r.bbox_diagonal_length > 100000
       ),
       filtered_lines AS (
         SELECT * FROM ways_in_tile
-        WHERE tags ?| ARRAY['waterway']
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags @> 'route => ferry'
-          AND bbox_diagonal_length > %3$L * 50.0
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags ? 'railway'
-          AND NOT tags ? 'service'
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'power', 'railway', 'route', 'telecom', 'waterway']
+        WHERE (
+          tags @> 'highway => motorway'
+          OR tags @> 'highway => motorway_link'
+          OR tags @> 'highway => trunk'
+          OR tags @> 'highway => trunk_link'
+          OR tags @> 'highway => primary'
+          OR tags @> 'highway => primary_link'
+          OR tags @> 'highway => secondary'
+          OR tags @> 'highway => secondary_link'
+          OR tags @> 'highway => tertiary'
+          OR tags @> 'highway => tertiary_link'
+          OR tags @> 'highway => unclassified'
+          OR (tags ? 'highway' AND tags @> 'expressway => yes')
+        ) OR (
+            (
+              tags @> 'highway => residential'
+            )
+            AND %1$L >= 12
+        ) OR (
+          tags ? 'highway'
+          AND NOT (tags @> 'highway => footway' AND tags ? 'footway')
           AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags ?| ARRAY['man_made', 'natural']
-          AND is_explicit_line
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags @> 'natural => coastline'
-          AND %1$L >= 13
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags ?| ARRAY['golf']
-          AND is_explicit_line
+        ) OR (
+          tags ? 'highway'
           AND %1$L >= 15
-      UNION ALL
-        SELECT * FROM ways_in_tile
-        WHERE tags ?| ARRAY['indoor']
-          AND is_explicit_line
-          AND %1$L >= 18
+        ) OR (
+          tags ?| ARRAY['waterway']
+        ) OR (
+          tags @> 'route => ferry'
+            AND bbox_diagonal_length > %3$L * 50.0
+        ) OR (
+          tags ? 'railway'
+            AND NOT tags ? 'service'
+        ) OR (
+          tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'power', 'railway', 'route', 'telecom', 'waterway']
+            AND %1$L >= 13
+        ) OR (
+          tags ?| ARRAY['man_made', 'natural']
+            AND is_explicit_line
+            AND %1$L >= 13
+        ) OR (
+          tags @> 'natural => coastline'
+            AND %1$L >= 13
+        ) OR (
+          tags ?| ARRAY['golf']
+            AND is_explicit_line
+            AND %1$L >= 15
+        ) OR (
+          tags ?| ARRAY['indoor']
+            AND is_explicit_line
+            AND %1$L >= 18
+        )
       ),
       admin_boundary_lines AS (
         SELECT w.id,
-          w.tags
+          FIRST_VALUE(w.tags) OVER (PARTITION BY w.id)
             || hstore('r.boundary.min:admin_level', MIN((r.tags->'admin_level')::int)::text)
             || hstore('r.boundary.max:admin_level', MAX((r.tags->'admin_level')::int)::text)
             || hstore('r.boundary', '┃' || STRING_AGG(r.tags -> 'boundary', '┃' ORDER BY r.id) || '┃')
             || hstore('r.boundary:admin_level', '┃' || STRING_AGG(r.tags -> 'admin_level', '┃' ORDER BY r.id) || '┃') AS tags,
-          w.geom
+          FIRST_VALUE(w.geom) OVER (PARTITION BY w.id) AS geom
         FROM way w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
           AND r.tags @> 'boundary => administrative'
           AND r.tags ? 'admin_level'
-        GROUP BY w.id, w.tags, w.geom
+        GROUP BY w.id
       )
         SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_lines
       UNION ALL
         SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM admin_boundary_lines
-      UNION ALL
-        SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_highways
     ;
     $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
   END IF;

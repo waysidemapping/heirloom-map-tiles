@@ -4,7 +4,7 @@
 set -e # Exit if any command fails
 
 APP_DIR="/usr/src/app"
-SQL_FUNCTIONS_FILE="functions.sql"
+SQL_FUNCTIONS_FILE="sql/functions.sql"
 DB_NAME="osm"
 
 # Use the latest lists instead of the lists at import since all tags are present in the db, we're just filtering 

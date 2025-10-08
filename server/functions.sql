@@ -788,7 +788,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       FROM scored_and_gridded
     )
       SELECT id, tags::jsonb, geom, area_3857, osm_type FROM ranked
-      WHERE rank <= 150
+      WHERE rank <= 100
     UNION ALL
       SELECT id, tags::jsonb, geom, area_3857, osm_type FROM route_centerpoints
     ;

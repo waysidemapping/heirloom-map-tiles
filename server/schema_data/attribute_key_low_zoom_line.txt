@@ -6,7 +6,10 @@ expressway
 highway
 intermittent
 man_made
+maritime
+name
 natural
+order:strahler
 power
 railway
 route

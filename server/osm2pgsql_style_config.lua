@@ -285,7 +285,6 @@ function osm2pgsql.process_relation(object)
             local geom = object:as_geometrycollection():transform(3857)
             local minX, minY, maxX, maxY = geom:get_bbox()
             non_area_relation_table:insert({
-                id = object.id,
                 tags = object.tags,
                 geom = geom,
                 bbox = format_bbox(minX, minY, maxX, maxY),

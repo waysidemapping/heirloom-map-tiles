@@ -1,3 +1,5 @@
+import {heirloomProtocolFunction} from './heirloom-protocol.js';
+
 var map;
 
 window.addEventListener('load', function () {
@@ -9,6 +11,15 @@ window.addEventListener('load', function () {
     center: [0, 0],
     zoom: 5
   });
+
+  maplibregl.addProtocol('heirloom', heirloomProtocolFunction);
+  map.setTransformRequest((url, resourceType) => {
+      if (url.startsWith('http://localhost:3000/') && resourceType === 'Tile') {
+          return { url: 'heirloom://' + url };
+      }
+      return undefined;
+  });
+  
   map
     .addControl(new maplibregl.NavigationControl({
       visualizePitch: true
@@ -50,6 +61,15 @@ let osmTypeName = {
   'r': 'relation'
 };
 
+function idToOsmType(id) {
+  switch (id % 10) {
+    case 1: return 'n';
+    case 2: return 'w';
+    case 3: return 'r';
+    default: return null;
+  }
+}
+
 function processMouseForPopup(e) {
 
   let entities = map.queryRenderedFeatures(e.point, queryOpts);
@@ -78,12 +98,10 @@ function processMouseForPopup(e) {
       .replaceChildren(
         ...entities.flatMap(entity => {
           let tags = Object.assign({}, entity.properties);
-          let osmId = tags.osm_id;
-          let osmType = tags.osm_type;
+          let osmId = Math.floor(entity.id / 10);
+          let osmType = idToOsmType(entity.id);
           let area = tags.area_3857 ? ' · ' + new Intl.NumberFormat('en-US').format(Math.round(tags.area_3857)) + ' m²' : '';
           delete tags.area_3857;
-          delete tags.osm_id;
-          delete tags.osm_type;
           return [
             createElement('tr')
               .append(
@@ -103,12 +121,16 @@ function processMouseForPopup(e) {
               ),
             ...Object.keys(tags).sort().map(key => {
               let value = tags[key];
-              let href = externalLinkForValue(key, value, tags);
-              let valElement = href ? createElement('a')
+              let valueHref = externalLinkForValue(key, value, tags);
+              let valElement = valueHref ? createElement('a')
                   .setAttribute('target', '_blank')
                   .setAttribute('rel', 'nofollow')
-                  .setAttribute('href', href)
+                  .setAttribute('href', valueHref)
                   .append(value) : value;
+                
+              let keyHref = key.startsWith('r.') ? `https://wiki.openstreetmap.org/wiki/Key:${key.substring(2)}` : 
+                key.startsWith('m.') ? `https://www.openstreetmap.org/relation/${key.substring(2)}` :
+                `https://wiki.openstreetmap.org/wiki/Key:${key}`;
           
               return createElement('tr')
                 .append(
@@ -116,7 +138,7 @@ function processMouseForPopup(e) {
                     .append(
                       createElement('a')
                         .setAttribute('target', '_blank')
-                        .setAttribute('href', `https://wiki.openstreetmap.org/wiki/Key:${key}`)
+                        .setAttribute('href', keyHref)
                         .append(key)
                     ),
                   createElement('td')

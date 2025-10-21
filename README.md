@@ -154,4 +154,4 @@ docker exec -i heirloom-dev-container sudo -u postgres psql -U postgres -d osm -
 
 ### What's with the name?
 
-[Heirlooms](https://en.wikipedia.org/wiki/Heirloom_plant) (pronounced *AIR-looms* in the US) are rare varieties of fruits and vegetables that are typically homegrown rather than produced for agribusiness. It's supposed to sound earthy and local and hopefully not pretentious.
+[Heirlooms](https://en.wikipedia.org/wiki/Heirloom_plant) (pronounced *AIR-looms* in the US) are rare varieties of fruits and vegetables that are typically homegrown rather than produced for agribusiness. It's supposed to sound earthy and rustic and hopefully not pretentious.

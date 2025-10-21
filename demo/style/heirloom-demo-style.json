@@ -46,7 +46,8 @@
                 ["has", "route"],
                 ["has", "waterway"],
                 ["has", "power"],
-                ["in", "┃administrative┃", ["get", "r.boundary"]]
+                ["in", "┃administrative┃", ["get", "r.boundary"]],
+                ["in", "┃hiking┃", ["get", "r.route"]]
             ]],
             "paint": {
                 "line-color": "Purple",
@@ -96,6 +97,18 @@
                 "line-color": "Black",
                 "line-opacity": 0.75
             }
+        },
+        {
+            "id": "low-zoom-hiking-routes",
+            "source": "heirloom",
+            "source-layer": "line",
+            "type": "line",
+            "filter": ["in", "┃hiking┃", ["get", "r.route"]],
+            "paint": {
+                "line-color": "DarkGreen",
+                "line-opacity": 0.75
+            },
+            "maxzoom": 10
         },
         {
             "id": "highway",

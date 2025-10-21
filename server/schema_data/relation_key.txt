@@ -1,0 +1,10 @@
+admin_level
+boundary
+colour
+name
+network
+operator
+ref
+route
+type
+wikidata

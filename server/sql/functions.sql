@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geometry, min_area real, simplify_tolerance real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
+  RETURNS TABLE(id int8, tags jsonb, geom geometry, area_3857 real, osm_type text)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
   BEGIN
@@ -100,41 +100,6 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
 END IF;
 END;
 $$;
-
-CREATE OR REPLACE FUNCTION function_get_area_layer_for_tile(z integer, env_geom geometry)
-  RETURNS bytea
-  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $area_function_body$
-  WITH
-    area_features_without_ocean AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_area_features(z, env_geom, (ST_Area(env_geom) * 0.00001)::real, (((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2)::real)
-    ),
-    unioned_area_features AS (
-        SELECT id, tags, geom, area_3857, osm_type FROM area_features_without_ocean
-      UNION ALL
-        SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS area_3857, NULL AS osm_type FROM function_get_ocean_for_tile(env_geom)
-    ),
-    tagged_area_features AS (
-      SELECT
-        id,
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
-        geom,
-        area_3857,
-        osm_type
-      FROM unioned_area_features
-      LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom, area_3857, osm_type
-    ),
-    mvt_area_features AS (
-      SELECT
-        id * 10 + (CASE WHEN osm_type = 'w' THEN 2 WHEN osm_type = 'r' THEN 3 ELSE 0 END) AS feature_id,
-        tags,
-        area_3857,
-        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
-      FROM tagged_area_features
-    )
-    SELECT ST_AsMVT(tile, 'area', 4096, 'geom', 'feature_id') AS mvt FROM mvt_area_features AS tile
-$area_function_body$;
 
 CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geometry, min_diagonal_length real, simplify_tolerance real)
   RETURNS TABLE(id int8, tags jsonb, geom geometry, relation_ids bigint[])
@@ -376,8 +341,10 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
   END;
 $$;
 
+DROP FUNCTION function_get_point_features(integer,geometry,real,real);
+
 CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real, max_area real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
+  RETURNS TABLE(id int8, tags jsonb, geom geometry, area_3857 real, osm_type text)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
     BEGIN
@@ -495,13 +462,51 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
   END;
 $$;
 
-CREATE OR REPLACE FUNCTION function_get_point_layer_for_tile(z integer, env_geom geometry)
+CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x integer, y integer, env_geom geometry, env_area real, env_width real)
   RETURNS bytea
   LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $point_function_body$
+  AS $function_body$
   WITH
+    area_features_without_ocean AS (
+      SELECT id, tags, geom, area_3857, osm_type FROM function_get_area_features(z, env_geom, (env_area * 0.00001)::real, (env_width/4096 * 2)::real)
+    ),
+    unioned_area_features AS (
+        SELECT id, tags, geom, area_3857, osm_type FROM area_features_without_ocean
+      UNION ALL
+        SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS area_3857, NULL AS osm_type FROM function_get_ocean_for_tile(env_geom)
+    ),
+    tagged_area_features AS (
+      SELECT
+        id,
+        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
+        geom,
+        area_3857,
+        osm_type
+      FROM unioned_area_features
+      LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
+      GROUP BY id, geom, area_3857, osm_type
+    ),
+    mvt_area_features AS (
+      SELECT
+        id * 10 + (CASE WHEN osm_type = 'w' THEN 2 WHEN osm_type = 'r' THEN 3 ELSE 0 END) AS feature_id,
+        tags,
+        area_3857,
+        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
+      FROM tagged_area_features
+    ),
+    line_features AS (
+      SELECT id, tags, geom, relation_ids
+      FROM function_get_line_features(z, env_geom, sqrt(2.0 * (env_area * 0.000000075))::real, (env_width/4096 * 2)::real)
+    ),
+    mvt_line_features AS (
+      SELECT
+        id * 10 + 2 AS feature_id,
+        tags,
+        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
+      FROM line_features
+    ),
     point_features AS (
-      SELECT _id AS id, _tags AS tags, _geom AS geom, _area_3857 AS area_3857, _osm_type AS osm_type FROM function_get_point_features(z, env_geom, (ST_Area(env_geom) * 0.0005)::real, (ST_Area(env_geom) * 16)::real)
+      SELECT id, tags, geom, area_3857, osm_type FROM function_get_point_features(z, env_geom, (env_area * 0.0005)::real, (env_area * 16)::real)
     ),
     mvt_point_features AS (
       SELECT
@@ -510,28 +515,6 @@ CREATE OR REPLACE FUNCTION function_get_point_layer_for_tile(z integer, env_geom
         area_3857,
         ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
       FROM point_features
-    )
-    SELECT ST_AsMVT(tile, 'point', 4096, 'geom', 'feature_id') AS mvt FROM mvt_point_features AS tile
-$point_function_body$;
-
-CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y integer)
-  RETURNS bytea
-  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $function_body$
-  WITH
-    envelope AS (
-      SELECT ST_TileEnvelope(z, x, y) AS env_geom  
-    ),
-    line_features AS (
-      SELECT id, tags, geom, relation_ids
-      FROM function_get_line_features(z, ST_TileEnvelope(z, x, y), sqrt(2.0 * (ST_Area(ST_TileEnvelope(z, x, y)) * 0.000000075))::real, (((ST_XMax(ST_TileEnvelope(z, x, y)) - ST_XMin(ST_TileEnvelope(z, x, y))))/4096 * 2)::real)
-    ),
-    mvt_line_features AS (
-      SELECT
-        id * 10 + 2 AS feature_id,
-        tags,
-        ST_AsMVTGeom(geom, ST_TileEnvelope(z, x, y), 4096, 64, true) AS geom
-      FROM line_features
     ),
     all_relation_ids AS (
       SELECT unnest(relation_ids) AS relation_id
@@ -562,19 +545,26 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y in
       SELECT
         id * 10 + 3 AS feature_id,
         tags,
-        ST_TileEnvelope(z, x, y) AS geom
+        env_geom AS geom
       FROM tagged_relation_features
     ),
     tiles AS (
         SELECT ST_AsMVT(mvt_relation_features, 'relation', 4096, 'geom', 'feature_id') AS mvt FROM mvt_relation_features
       UNION ALL
-        SELECT function_get_area_layer_for_tile(z, env_geom) AS mvt FROM envelope
+        SELECT ST_AsMVT(mvt_area_features, 'area', 4096, 'geom', 'feature_id') AS mvt FROM mvt_area_features
       UNION ALL
         SELECT ST_AsMVT(mvt_line_features, 'line', 4096, 'geom', 'feature_id') AS mvt FROM mvt_line_features
       UNION ALL
-        SELECT function_get_point_layer_for_tile(z, env_geom) AS mvt FROM envelope
+        SELECT ST_AsMVT(mvt_point_features, 'point', 4096, 'geom', 'feature_id') AS mvt FROM mvt_point_features
     )
     SELECT string_agg(mvt, ''::bytea) FROM tiles;
+$function_body$;
+
+CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y integer)
+  RETURNS bytea
+  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+  AS $function_body$
+  SELECT * FROM function_get_heirloom_tile_for_envelope(z, x, y, ST_TileEnvelope(z, x, y), ST_Area(ST_TileEnvelope(z, x, y))::real, (ST_XMax(ST_TileEnvelope(z, x, y)) - ST_XMin(ST_TileEnvelope(z, x, y)))::real)
 $function_body$;
 
 COMMENT ON FUNCTION function_get_heirloom_tile IS

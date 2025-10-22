@@ -237,9 +237,9 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
       RETURN QUERY EXECUTE format($fmt$
       WITH
       ways_in_tile AS (
-          SELECT id, tags, geom, is_explicit_line, bbox_diagonal_length FROM way_no_explicit_area
-          WHERE geom && %2$L
-            AND bbox_diagonal_length > %3$L
+        SELECT id, tags, geom, is_explicit_line, bbox_diagonal_length FROM way_no_explicit_area
+        WHERE geom && %2$L
+          AND bbox_diagonal_length > %3$L
       ),
       filtered_highways AS (
         SELECT DISTINCT ON (w.id)
@@ -306,35 +306,42 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             AND %1$L >= 18
         )
       ),
-      admin_boundary_lines AS (
+      filtered_lines_w_relations AS (
         SELECT w.id,
-          FIRST_VALUE(w.tags) OVER (PARTITION BY w.id)
-            || hstore('r.boundary.min:admin_level', MIN((r.tags->'admin_level')::int)::text)
-            || hstore('r.boundary.max:admin_level', MAX((r.tags->'admin_level')::int)::text)
-            || hstore('r.boundary', '┃' || STRING_AGG(r.tags -> 'boundary', '┃' ORDER BY r.id) || '┃')
-            || hstore('r.boundary:admin_level', '┃' || STRING_AGG(r.tags -> 'admin_level', '┃' ORDER BY r.id) || '┃') AS tags,
-          FIRST_VALUE(w.geom) OVER (PARTITION BY w.id) AS geom
+          (ARRAY_AGG(w.tags::jsonb))[1]
+            || COALESCE(jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) FILTER (WHERE r.id IS NOT NULL), '{}'::jsonb) AS tags,
+          (ARRAY_AGG(w.geom))[1] AS geom,
+          ARRAY_AGG(r.id) AS relation_ids
+        FROM filtered_lines w
+        LEFT JOIN way_relation_member rw ON w.id = rw.member_id
+        LEFT JOIN non_area_relation r ON rw.relation_id = r.id AND (r.tags @> 'type => route' OR r.tags @> 'type => waterway')
+        GROUP BY w.id
+      ),
+      admin_boundaries AS (
+        SELECT w.id,
+          w.tags::jsonb
+            || jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) AS tags,
+          (ARRAY_AGG(w.geom))[1] AS geom,
+          ARRAY_AGG(r.id) AS relation_ids
         FROM way w
         JOIN way_relation_member rw ON w.id = rw.member_id
-        JOIN area_relation r ON rw.relation_id = r.id
+        JOIN area_relation r ON rw.relation_id = r.id AND r.tags @> 'boundary => administrative' AND r.tags ? 'admin_level'
         WHERE w.geom && %2$L
-          AND r.tags @> 'boundary => administrative'
-          AND r.tags ? 'admin_level'
         GROUP BY w.id
       ),
       all_lines AS (
-          SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM filtered_lines
+          SELECT id, tags, ST_Simplify(geom, %4$L, true) AS geom, relation_ids FROM filtered_lines_w_relations
         UNION ALL
-          SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom FROM admin_boundary_lines
+          SELECT id, tags, ST_Simplify(geom, %4$L, true) AS geom, relation_ids FROM admin_boundaries
       )
       SELECT
         id,
         jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
         geom,
-        ARRAY[]::bigint[] AS relation_ids
+        relation_ids
       FROM all_lines
       LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom
+      GROUP BY id, geom, relation_ids
     ;
     $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
   END IF;

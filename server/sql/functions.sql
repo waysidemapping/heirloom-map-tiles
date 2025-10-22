@@ -264,11 +264,11 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           OR tags @> 'highway => secondary_link'
           OR tags @> 'highway => tertiary'
           OR tags @> 'highway => tertiary_link'
-          OR tags @> 'highway => unclassified'
           OR (tags ? 'highway' AND tags @> 'expressway => yes')
         ) OR (
             (
               tags @> 'highway => residential'
+              OR tags @> 'highway => unclassified'
             )
             AND %1$L >= 12
         ) OR (
@@ -285,7 +285,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             AND bbox_diagonal_length > %3$L * 50.0
         ) OR (
           tags ? 'railway'
-            AND NOT tags ? 'service'
+          AND NOT tags ? 'service'
         ) OR (
           tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'power', 'railway', 'route', 'telecom', 'waterway']
             AND %1$L >= 13

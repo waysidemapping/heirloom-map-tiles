@@ -93,8 +93,21 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
         WHERE tags ? 'building'
           -- only show really big buildings at low zooms
           AND (%1$L >= 14 OR area_3857 > %3$L::real * 50)
+    ),
+    simplifed_areas AS (
+      SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom, area_3857, osm_type FROM filtered_areas
     )
-    SELECT id, tags::jsonb, ST_Simplify(geom, %4$L, true) AS geom, area_3857, osm_type FROM filtered_areas
+    SELECT
+      id,
+      (
+        SELECT jsonb_object_agg(key, value)
+        FROM jsonb_each(tags)
+        WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%'
+      ) AS tags,
+      geom,
+      area_3857,
+      osm_type
+    FROM simplifed_areas
   ;
   $fmt$, z, env_geom, min_area, simplify_tolerance);
 END IF;
@@ -170,7 +183,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           )
           GROUP BY w.id
         ),
-        hiking_routes AS (
+        path_routes AS (
           SELECT
             w.id,
             jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) AS tags,
@@ -186,7 +199,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             AND r.bbox_diagonal_length > %3$L * 250.0
           GROUP BY w.id
         ),
-        boundaries AS (
+        admin_boundaries AS (
           SELECT w.id,
             slice(w.tags, ARRAY['name', 'maritime'])::jsonb
               || jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) AS tags,
@@ -218,11 +231,11 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             GROUP BY tags
           UNION ALL
             SELECT tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom, MIN(relation_ids) AS relation_ids
-            FROM hiking_routes
+            FROM path_routes
             GROUP BY tags
           UNION ALL
             SELECT tags, ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), %4$L, true) AS geom, MIN(relation_ids) AS relation_ids
-            FROM boundaries
+            FROM admin_boundaries
             GROUP BY tags
         )
         SELECT
@@ -241,18 +254,8 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         WHERE geom && %2$L
           AND bbox_diagonal_length > %3$L
       ),
-      filtered_highways AS (
-        SELECT DISTINCT ON (w.id)
-          w.id,
-          w.tags,
-          w.geom
-        FROM ways_in_tile w
-        LEFT JOIN way_relation_member rw ON w.id = rw.member_id
-        LEFT JOIN non_area_relation r ON rw.relation_id = r.id
-        WHERE w.tags ? 'highway' AND r.tags @> 'route => hiking' AND r.bbox_diagonal_length > 100000
-      ),
       filtered_lines AS (
-        SELECT * FROM ways_in_tile
+        SELECT id, tags, geom FROM ways_in_tile
         WHERE (
           tags @> 'highway => motorway'
           OR tags @> 'highway => motorway_link'
@@ -306,49 +309,79 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
             AND %1$L >= 18
         )
       ),
-      filtered_lines_w_relations AS (
+      path_routes AS (
         SELECT w.id,
-          (ARRAY_AGG(w.tags::jsonb))[1]
-            || COALESCE(jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) FILTER (WHERE r.id IS NOT NULL), '{}'::jsonb) AS tags,
-          (ARRAY_AGG(w.geom))[1] AS geom,
-          ARRAY_AGG(r.id) AS relation_ids
-        FROM filtered_lines w
-        LEFT JOIN way_relation_member rw ON w.id = rw.member_id
-        LEFT JOIN non_area_relation r ON rw.relation_id = r.id AND (r.tags @> 'type => route' OR r.tags @> 'type => waterway')
+          w.tags,
+          w.geom
+        FROM way_no_explicit_area w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND w.tags ? 'highway'
+          AND r.tags @> 'type => route'
+          AND r.tags @> 'route => hiking'
+          AND r.bbox_diagonal_length > %3$L * 250.0
+          -- all paths are shown by z15 anyway
+          AND %1$L < 15
         GROUP BY w.id
       ),
       admin_boundaries AS (
         SELECT w.id,
-          w.tags::jsonb
-            || jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) AS tags,
-          (ARRAY_AGG(w.geom))[1] AS geom,
-          ARRAY_AGG(r.id) AS relation_ids
+          w.tags,
+          w.geom
         FROM way w
         JOIN way_relation_member rw ON w.id = rw.member_id
         JOIN area_relation r ON rw.relation_id = r.id AND r.tags @> 'boundary => administrative' AND r.tags ? 'admin_level'
         WHERE w.geom && %2$L
         GROUP BY w.id
       ),
-      all_lines AS (
-          SELECT id, tags, ST_Simplify(geom, %4$L, true) AS geom, relation_ids FROM filtered_lines_w_relations
+      all_filtered_lines AS (
+          SELECT * FROM filtered_lines
         UNION ALL
-          SELECT id, tags, ST_Simplify(geom, %4$L, true) AS geom, relation_ids FROM admin_boundaries
+          SELECT * FROM path_routes
+        UNION ALL
+          SELECT * FROM admin_boundaries
+      ),
+      all_relations AS (
+          SELECT id, tags FROM area_relation
+        UNION ALL
+          SELECT id, tags FROM non_area_relation
+      ),
+      filtered_lines_w_relations AS (
+        SELECT w.id,
+          (ARRAY_AGG(w.tags::jsonb))[1]
+            || COALESCE(jsonb_object_agg('m.' || rw.relation_id::text, rw.member_role) FILTER (WHERE r.id IS NOT NULL), '{}'::jsonb) AS tags,
+          (ARRAY_AGG(w.geom))[1] AS geom,
+          ARRAY_AGG(r.id) AS relation_ids
+        FROM all_filtered_lines w
+        LEFT JOIN way_relation_member rw ON w.id = rw.member_id
+        LEFT JOIN all_relations r ON rw.relation_id = r.id
+          AND (
+            r.tags @> 'boundary => administrative'
+            OR r.tags @> 'type => route'
+            OR r.tags @> 'type => waterway'
+          )
+        GROUP BY w.id
+      ),
+      simplified_lines AS (
+        SELECT id, tags, ST_Simplify(geom, %4$L, true) AS geom, relation_ids
+        FROM filtered_lines_w_relations
       )
       SELECT
         id,
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
+        (
+          SELECT jsonb_object_agg(key, value)
+          FROM jsonb_each(tags)
+          WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%'
+        ) AS tags,
         geom,
         relation_ids
-      FROM all_lines
-      LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom, relation_ids
+      FROM simplified_lines
     ;
     $fmt$, z, env_geom, min_diagonal_length, simplify_tolerance);
   END IF;
   END;
 $$;
-
-DROP FUNCTION function_get_point_features(integer,geometry,real,real);
 
 CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real, max_area real)
   RETURNS TABLE(id int8, tags jsonb, geom geometry, area_3857 real, osm_type text)
@@ -457,13 +490,15 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
     )
     SELECT
       id,
-      jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
+      (
+        SELECT jsonb_object_agg(key, value)
+        FROM jsonb_each(tags)
+        WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%'
+      ) AS tags,
       geom,
       area_3857,
       osm_type
     FROM all_points
-    LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-    GROUP BY id, geom, area_3857, osm_type
     ;
     $fmt$, z, env_geom, min_area, max_area);
   END;
@@ -477,21 +512,10 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
     area_features_without_ocean AS (
       SELECT id, tags, geom, area_3857, osm_type FROM function_get_area_features(z, env_geom, (env_area * 0.00001)::real, (env_width/4096 * 2)::real)
     ),
-    unioned_area_features AS (
+    area_features AS (
         SELECT id, tags, geom, area_3857, osm_type FROM area_features_without_ocean
       UNION ALL
         SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS area_3857, NULL AS osm_type FROM function_get_ocean_for_tile(env_geom)
-    ),
-    tagged_area_features AS (
-      SELECT
-        id,
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{JSONB_KEYS}}) {{JSONB_PREFIXES}} OR key LIKE 'm.%%') AS tags,
-        geom,
-        area_3857,
-        osm_type
-      FROM unioned_area_features
-      LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id, geom, area_3857, osm_type
     ),
     mvt_area_features AS (
       SELECT
@@ -499,7 +523,7 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         tags,
         area_3857,
         ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
-      FROM tagged_area_features
+      FROM area_features
     ),
     line_features AS (
       SELECT id, tags, geom, relation_ids
@@ -543,10 +567,12 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
     tagged_relation_features AS (
       SELECT
         id,
-        jsonb_object_agg(key, value) FILTER (WHERE key IN ({{RELATION_JSONB_KEYS}})) AS tags
+        (
+          SELECT jsonb_object_agg(key, value)
+          FROM jsonb_each(tags)
+          WHERE key IN ({{RELATION_JSONB_KEYS}})
+        ) AS tags
       FROM relation_features
-      LEFT JOIN LATERAL jsonb_each(tags) AS t(key, value) ON true
-      GROUP BY id
     ),
     mvt_relation_features AS (
       SELECT

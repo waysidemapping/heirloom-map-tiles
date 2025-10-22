@@ -1,6 +1,7 @@
 admin_level
 boundary
 colour
+informal
 name
 network
 operator

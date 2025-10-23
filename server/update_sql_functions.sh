@@ -8,7 +8,7 @@ DB_NAME="osm"
 
 # Use the latest lists instead of the lists at import since all tags are present in the db, we're just filtering 
 JSONB_KEYS=$(grep -v '^$' "$APP_DIR/schema_data/key.txt" | sed "s/.*/'&'/" | paste -sd, -)
-JSONB_PREFIXES=$(grep -v '^$' "$APP_DIR/schema_data/key_prefix.txt" | awk '{print "OR key LIKE \x27" $0 "%%\x27"}' | paste -sd' ' -)
+JSONB_PREFIXES=$(grep -v '^$' "$APP_DIR/schema_data/key_prefix.txt" | awk '{print "OR key LIKE \x27" $0 "%\x27"}' | paste -sd' ' -)
 
 RELATION_JSONB_KEYS=$(grep -v '^$' "$APP_DIR/schema_data/relation_key.txt" | sed "s/.*/'&'/" | paste -sd, -)
 
@@ -16,7 +16,7 @@ FIELD_DEFS="$(grep -v '^$' "$APP_DIR/schema_data/key.txt" | sed 's/.*/"&":"Strin
 FIELD_DEFS="$FIELD_DEFS,$(grep -v '^$' "$APP_DIR/schema_data/key_prefix.txt" | sed 's/.*/"&\*":"String"/' | paste -sd, -)"
 
 LOW_ZOOM_LINE_JSONB_KEYS=$(grep -v '^$' "$APP_DIR/schema_data/low_zoom_line_key.txt" | sed "s/.*/'&'/" | paste -sd, -)
-LOW_ZOOM_LINE_JSONB_PREFIXES=$(grep -v '^$' "$APP_DIR/schema_data/low_zoom_line_key_prefix.txt" | awk '{print "OR key LIKE \x27" $0 "%%\x27"}' | paste -sd' ' -)
+LOW_ZOOM_LINE_JSONB_PREFIXES=$(grep -v '^$' "$APP_DIR/schema_data/low_zoom_line_key_prefix.txt" | awk '{print "OR key LIKE \x27" $0 "%\x27"}' | paste -sd' ' -)
 
 LOW_ZOOM_AREA_JSONB_KEY_MAPPINGS="$(grep -v '^$' "$APP_DIR/schema_data/low_zoom_area_key.txt" | sed "s/.*/'&', tags->'&'/" | paste -sd, -)"
 

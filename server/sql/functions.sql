@@ -381,10 +381,8 @@ $$;
 
 CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, min_area real, max_area real)
   RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
-  LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
-    BEGIN
-    RETURN QUERY
     WITH
     small_points AS (
         SELECT id, tags, geom, NULL::real AS area_3857, true AS is_node_or_explicit_area, 'n' AS osm_type FROM node
@@ -496,7 +494,6 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       osm_type
     FROM all_points
     ;
-  END;
 $$;
 
 CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x integer, y integer, env_geom geometry, env_area real, env_width real)

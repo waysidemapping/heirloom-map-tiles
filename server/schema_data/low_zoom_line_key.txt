@@ -4,10 +4,10 @@ barrier
 building
 expressway
 highway
+informal
 intermittent
 man_made
 maritime
-name
 natural
 order:strahler
 power

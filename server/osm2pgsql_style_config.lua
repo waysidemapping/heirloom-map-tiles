@@ -135,42 +135,45 @@ local non_area_relation_table = osm2pgsql.define_table({
 
 local node_relation_member_table = osm2pgsql.define_table({
     name = 'node_relation_member',
-    ids = { type = 'relation', id_column = 'relation_id', create_index = 'always' },
+    ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
         { column = 'member_index', type = 'int2' },
         { column = 'member_id', type = 'int8' },
         { column = 'member_role', type = 'text' }
     },
     indexes = {
-        { column = 'member_id', method = 'btree', include = 'relation_id' },
+        { column = {'relation_id', 'member_role'}, method = 'btree' },
+        { column = {'member_id', 'member_role'}, method = 'btree' },
         { column = 'member_role', method = 'btree' }
     }
 })
 
 local way_relation_member_table = osm2pgsql.define_table({
     name = 'way_relation_member',
-    ids = { type = 'relation', id_column = 'relation_id', create_index = 'always' },
+    ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
         { column = 'member_index', type = 'int2' },
         { column = 'member_id', type = 'int8' },
         { column = 'member_role', type = 'text' }
     },
     indexes = {
-        { column = 'member_id', method = 'btree', include = 'relation_id' },
+        { column = {'relation_id', 'member_role'}, method = 'btree' },
+        { column = {'member_id', 'member_role'}, method = 'btree' },
         { column = 'member_role', method = 'btree' }
     }
 })
 
 local relation_relation_member_table = osm2pgsql.define_table({
     name = 'relation_relation_member',
-    ids = { type = 'relation', id_column = 'relation_id', create_index = 'always' },
+    ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
         { column = 'member_index', type = 'int2' },
         { column = 'member_id', type = 'int8' },
         { column = 'member_role', type = 'text' }
     },
     indexes = {
-        { column = 'member_id', method = 'btree', include = 'relation_id' },
+        { column = {'relation_id', 'member_role'}, method = 'btree' },
+        { column = {'member_id', 'member_role'}, method = 'btree' },
         { column = 'member_role', method = 'btree' }
     }
 })

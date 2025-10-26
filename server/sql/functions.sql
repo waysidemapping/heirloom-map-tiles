@@ -339,11 +339,6 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         UNION ALL
           SELECT * FROM admin_boundaries
       ),
-      all_relations AS (
-          SELECT id, tags FROM area_relation
-        UNION ALL
-          SELECT id, tags FROM non_area_relation
-      ),
       filtered_lines_w_relations AS (
         SELECT w.id,
           (ARRAY_AGG(w.tags::jsonb))[1]
@@ -352,7 +347,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
           ARRAY_AGG(r.id) AS relation_ids
         FROM all_filtered_lines w
         LEFT JOIN way_relation_member rw ON w.id = rw.member_id
-        LEFT JOIN all_relations r ON rw.relation_id = r.id
+        LEFT JOIN relation r ON rw.relation_id = r.id
           AND (
             r.tags @> 'boundary => administrative'
             OR r.tags @> 'type => route'

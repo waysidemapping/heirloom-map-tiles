@@ -81,6 +81,19 @@ local coastline_table = osm2pgsql.define_table({
     }
 })
 
+-- Contains all relations (needed to quickly select relation tags based on relation IDs)
+local relation_table = osm2pgsql.define_table({
+    name = 'relation',
+    ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
+    columns = {
+        { column = 'tags', type = 'hstore', not_null = true }
+    },
+    indexes = {
+        { column = 'tags', method = 'gin' }
+    }
+})
+
+-- Contains only multi-part area relations
 local area_relation_table = osm2pgsql.define_table({
     name = 'area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
@@ -100,6 +113,7 @@ local area_relation_table = osm2pgsql.define_table({
     }
 })
 
+-- Contains all relations except multi-part areas
 local non_area_relation_table = osm2pgsql.define_table({
     name = 'non_area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
@@ -238,6 +252,8 @@ end
 -- only runs on tagged relations
 function osm2pgsql.process_relation(object)
     local relType = object.tags.type
+
+    -- relations without a `type` tag are uncommon and ambiguous so ignore them
     if relType then
 
         local label_node_id = nil
@@ -260,6 +276,10 @@ function osm2pgsql.process_relation(object)
                 relation_relation_member_table:insert(row)
             end
         end
+
+        relation_table:insert({
+            tags = object.tags
+        })
 
         if multipolygon_relation_types[relType] then
             local geom = object:as_multipolygon():transform(3857)

@@ -111,7 +111,7 @@ CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geomet
       (
         SELECT jsonb_object_agg(key, value)
         FROM each(tags)
-        WHERE key IN ({{KEY_LIST}}) {{KEY_PREFIX_LIKE_STATEMENTS}}
+        WHERE key IN ({{AREA_KEY_LIST}}) {{AREA_KEY_PREFIX_LIKE_STATEMENTS}}
       ) AS tags,
       ST_Simplify(geom, simplify_tolerance, true) AS geom,
       area_3857,
@@ -361,7 +361,7 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         (
           SELECT jsonb_object_agg(key, value)
           FROM jsonb_each(tags)
-          WHERE key IN ({{KEY_LIST}}) {{KEY_PREFIX_LIKE_STATEMENTS}} OR key LIKE 'm.%'
+          WHERE key IN ({{LINE_KEY_LIST}}) {{LINE_KEY_PREFIX_LIKE_STATEMENTS}} OR key LIKE 'm.%'
         ) AS tags,
         geom,
         relation_ids
@@ -479,7 +479,7 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
       (
         SELECT jsonb_object_agg(key, value)
         FROM jsonb_each(tags)
-        WHERE key IN ({{KEY_LIST}}) {{KEY_PREFIX_LIKE_STATEMENTS}}
+        WHERE key IN ({{POINT_KEY_LIST}}) {{POINT_KEY_PREFIX_LIKE_STATEMENTS}}
       ) AS tags,
       geom,
       area_3857,
@@ -589,33 +589,7 @@ $function_body$;
 COMMENT ON FUNCTION function_get_heirloom_tile IS
 $tilejson$
 {
-  "description => Server-farm-to-table OpenStreetMap tiles",
-  "attribution => © OpenStreetMap",
-  "vector_layers": [
-    {
-      "id => relation",
-      "fields": {
-        {{FIELD_DEFS}}
-      }
-    },
-    {
-      "id => area",
-      "fields": {
-        {{FIELD_DEFS}}
-      }
-    },
-    {
-      "id => line",
-      "fields": {
-        {{FIELD_DEFS}}
-      }
-    },
-    {
-      "id => point",
-      "fields": {
-        {{FIELD_DEFS}}
-      }
-    }
-  ]
+  "description": "Server-farm-to-table OpenStreetMap tiles",
+  "attribution": "OpenStreetMap"
 }
 $tilejson$;

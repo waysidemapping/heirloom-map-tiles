@@ -1,0 +1,10 @@
+communication:
+currency:
+diet:
+drink:
+fuel:
+monitoring:
+oneway:
+payment:
+recycling:
+sells:

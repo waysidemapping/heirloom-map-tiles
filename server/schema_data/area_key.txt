@@ -6,7 +6,6 @@ aerodrome
 aeroway
 allotments
 amenity
-area
 area:highway
 artwork_type
 attraction
@@ -24,8 +23,6 @@ boundary
 brand
 breakfast
 bridge
-bridge:name
-bridge:support
 building
 building:levels
 building:part
@@ -55,7 +52,6 @@ dish_washing
 distance
 dog
 drinking_water
-education
 education
 ele
 electric_bicycle
@@ -129,8 +125,6 @@ light_rail
 lit
 location
 lock
-lock_name
-lock_ref
 lunch
 male
 man_made
@@ -155,20 +149,16 @@ motorboat
 motorcar
 motorcycle
 mtb
-mtb:name
 mtb:scale
 mtb:scale:imba
 mtb:scale:uphill
-name
 natural
 network
 nudism
 office
 ohv
-oneway
 openfire
 operator
-order:strahler
 parking
 picnic_table
 piste:type
@@ -179,6 +169,7 @@ portable
 portage
 power
 power_supply
+private
 prominence
 protect_class
 protected_area
@@ -191,8 +182,6 @@ ramp:luggage
 ramp:stroller
 ramp:wheelchair
 rapids
-rapids:name
-ref
 religion
 reservation
 residential
@@ -245,7 +234,6 @@ tram
 trapping
 trolleybus
 tunnel
-tunnel:name
 type
 unisex
 usage
@@ -254,9 +242,7 @@ vehicle
 voltage
 washing_machine
 water
-waterbody:name
 waterway
-waterway:name
 wetland
 wheelchair
 width

@@ -1,0 +1,8 @@
+bridge:name:
+lock_name:
+mtb:name:
+name:
+oneway:
+rapids:name:
+tunnel:name:
+waterbody:name:

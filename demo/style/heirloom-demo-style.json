@@ -99,18 +99,6 @@
             }
         },
         {
-            "id": "low-zoom-hiking-routes",
-            "source": "heirloom",
-            "source-layer": "line",
-            "type": "line",
-            "filter": ["in", "┃hiking┃", ["get", "r.route"]],
-            "paint": {
-                "line-color": "DarkGreen",
-                "line-opacity": 0.75
-            },
-            "maxzoom": 10
-        },
-        {
             "id": "highway",
             "source": "heirloom",
             "source-layer": "line",

@@ -100,8 +100,8 @@ function processMouseForPopup(e) {
           let tags = Object.assign({}, entity.properties);
           let osmId = Math.floor(entity.id / 10);
           let osmType = idToOsmType(entity.id);
-          let area = tags.area_3857 ? ' · ' + new Intl.NumberFormat('en-US').format(Math.round(tags.area_3857)) + ' m²' : '';
-          delete tags.area_3857;
+          // let area = tags.area_3857 ? ' · ' + new Intl.NumberFormat('en-US').format(Math.round(tags.area_3857)) + ' m²' : '';
+          // delete tags.area_3857;
           return [
             createElement('tr')
               .append(
@@ -111,8 +111,8 @@ function processMouseForPopup(e) {
                   .replaceChildren(
                     createElement('span')
                       .append(entity.sourceLayer),
-                    createElement('span')
-                      .append(area),
+                    // createElement('span')
+                    //   .append(area),
                     (osmId && osmType) ? createElement('a')
                     .setAttribute('target', '_blank')
                     .setAttribute('href', `https://openstreetmap.org/${osmTypeName[osmType]}/${osmId}`)

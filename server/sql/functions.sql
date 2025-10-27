@@ -119,95 +119,95 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
     BEGIN
     IF z < 11 THEN
       RETURN QUERY
-        WITH
-        routes AS (
-          SELECT
-            w.id,
-            w.tags,
-            w.geom,
-            rw.member_role,
-            rw.relation_id
-          FROM way_no_explicit_area w
-          JOIN way_relation_member rw ON w.id = rw.member_id
-          JOIN non_area_relation r ON rw.relation_id = r.id
-          WHERE w.geom && env_geom
-            AND r.geom && env_geom
-            AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-            AND r.bbox_diagonal_length > min_diagonal_length * 200.0
-            AND r.tags @> 'type => route'
-            AND r.tags ? 'route'
-        ),
-        waterways AS (
-          SELECT
-            w.id,
-            w.tags,
-            w.geom,
-            rw.member_role,
-            rw.relation_id
-          FROM way_no_explicit_area w
-          JOIN way_relation_member rw ON w.id = rw.member_id AND rw.member_role = 'main_stream'
-          JOIN non_area_relation r ON rw.relation_id = r.id
-          WHERE w.geom && env_geom
-            AND r.geom && env_geom
-            AND w.tags ? 'waterway'
-            AND r.tags @> 'type => waterway'
-            AND r.bbox_diagonal_length > min_diagonal_length * 200.0
-        ),
-        admin_boundaries AS (
-          SELECT w.id,
-            w.tags,
-            w.geom,
-            rw.member_role,
-            rw.relation_id
-          FROM way w
-          JOIN way_relation_member rw ON w.id = rw.member_id
-          JOIN area_relation r ON rw.relation_id = r.id
-          WHERE w.geom && env_geom
-            AND r.geom && env_geom
-            AND r.tags @> 'boundary => administrative'
-            AND (
-              r.tags @> 'admin_level => 1'
-              OR r.tags @> 'admin_level => 2'
-              OR r.tags @> 'admin_level => 3'
-              OR r.tags @> 'admin_level => 4'
-              OR r.tags @> 'admin_level => 5'
-              OR (
-                z >= 6 AND r.tags @> 'admin_level => 6'
-              )
-            )
-        ),
-        combined_lines AS (
-            SELECT *
-            FROM routes
-          UNION ALL
-            SELECT *
-            FROM waterways
-          UNION ALL
-            SELECT *
-            FROM admin_boundaries
-        ),
-        collapsed AS (
-            SELECT slice(ANY_VALUE(tags), ARRAY[{{LOW_ZOOM_LINE_JSONB_KEYS}}])::jsonb
-                || COALESCE(jsonb_object_agg('m.' || relation_id::text, member_role) FILTER (WHERE relation_id IS NOT NULL), '{}'::jsonb) AS tags,
-              ANY_VALUE(geom) AS geom,
-              ARRAY_AGG(relation_id) AS relation_ids
-            FROM combined_lines
-            GROUP BY id
-        ),
-        grouped_and_simplified AS (
-          SELECT
-            tags,
-            ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), simplify_tolerance, true) AS geom,
-            ANY_VALUE(relation_ids) AS relation_ids
-          FROM collapsed
-          GROUP BY tags
-        )
+      WITH
+      routes AS (
         SELECT
-            NULL::int8 AS id,
-            tags,
-            geom,
-            relation_ids
-          FROM grouped_and_simplified
+          w.id,
+          w.tags,
+          w.geom,
+          rw.member_role,
+          rw.relation_id
+        FROM way_no_explicit_area w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && env_geom
+          AND r.geom && env_geom
+          AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
+          AND r.bbox_diagonal_length > min_diagonal_length * 200.0
+          AND r.tags @> 'type => route'
+          AND r.tags ? 'route'
+      ),
+      waterways AS (
+        SELECT
+          w.id,
+          w.tags,
+          w.geom,
+          rw.member_role,
+          rw.relation_id
+        FROM way_no_explicit_area w
+        JOIN way_relation_member rw ON w.id = rw.member_id AND rw.member_role = 'main_stream'
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && env_geom
+          AND r.geom && env_geom
+          AND w.tags ? 'waterway'
+          AND r.tags @> 'type => waterway'
+          AND r.bbox_diagonal_length > min_diagonal_length * 200.0
+      ),
+      admin_boundaries AS (
+        SELECT w.id,
+          w.tags,
+          w.geom,
+          rw.member_role,
+          rw.relation_id
+        FROM way w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && env_geom
+          AND r.geom && env_geom
+          AND r.tags @> 'boundary => administrative'
+          AND (
+            r.tags @> 'admin_level => 1'
+            OR r.tags @> 'admin_level => 2'
+            OR r.tags @> 'admin_level => 3'
+            OR r.tags @> 'admin_level => 4'
+            OR r.tags @> 'admin_level => 5'
+            OR (
+              z >= 6 AND r.tags @> 'admin_level => 6'
+            )
+          )
+      ),
+      combined_lines AS (
+          SELECT *
+          FROM routes
+        UNION ALL
+          SELECT *
+          FROM waterways
+        UNION ALL
+          SELECT *
+          FROM admin_boundaries
+      ),
+      collapsed AS (
+        SELECT slice(ANY_VALUE(tags), ARRAY[{{LOW_ZOOM_LINE_JSONB_KEYS}}])::jsonb
+            || COALESCE(jsonb_object_agg('m.' || relation_id::text, member_role) FILTER (WHERE relation_id IS NOT NULL), '{}'::jsonb) AS tags,
+          ANY_VALUE(geom) AS geom,
+          ARRAY_AGG(relation_id) AS relation_ids
+        FROM combined_lines
+        GROUP BY id
+      ),
+      grouped_and_simplified AS (
+        SELECT
+          tags,
+          ST_Simplify(ST_LineMerge(ST_Multi(ST_Collect(geom))), simplify_tolerance, true) AS geom,
+          ANY_VALUE(relation_ids) AS relation_ids
+        FROM collapsed
+        GROUP BY tags
+      )
+      SELECT
+        NULL::int8 AS id,
+        tags,
+        geom,
+        relation_ids
+      FROM grouped_and_simplified
       ;
     ELSE
       RETURN QUERY

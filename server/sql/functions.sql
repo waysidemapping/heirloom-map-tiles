@@ -523,7 +523,7 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         (
           SELECT jsonb_object_agg(key, value)
           FROM jsonb_each(tags)
-          WHERE key IN ({{RELATION_JSONB_KEYS}})
+          WHERE key IN ({{RELATION_JSONB_KEYS}}) {{RELATION_JSONB_PREFIXES}}
         ) AS tags
       FROM relation_features
     ),

@@ -1,9 +1,47 @@
+--
+-- © 2025 Quincy Morgan
+-- Licensed MIT: https://github.com/waysidemapping/heirloom-map-tiles/blob/main/LICENSE.md
+--
+-- # function_get_ocean_for_tile
+--
+-- ## What you get
+--
+-- This function returns a multipolygon representing the area of ocean in the given
+-- envelope `env_geom` (probably a map tile), or null if the area contains no ocean.
+-- The output is suitable for rendering the ocean with a fill but not with an outline since
+-- the shape may contain the tile edges.
+-- 
+-- This is done per-tile with no global preprocessing. Thus, it works in databases receiving frequent updates.
+--
+-- ## Prerequisites
+--
+-- This function requires the existence of a table `coastline` with two columns:
+-- * `geom`, gist-indexed: linestring geometry of the coastline in projected coordinates (EPSG 3857)
+-- * `area_3857`, btree-indexed: computed projected area of the coastlines if it's closed, else null
+--
+-- We're assuming the coastlines are in OpenStreetMap format: https://wiki.openstreetmap.org/wiki/Tag:natural%3Dcoastline
+-- * Coastlines are mapped as ways bounding the ocean on their right side (winding counterclockwise).
+-- * All ways must be connected by their endpoints without gaps to fully inscribe continents and islands.
+-- * No coastlines should be wound clockwise, i.e. the ocean has no "outer" rings
+--
+-- ## How it works
+-- 
+-- Using the above assumptions:
+-- * If the tile overlaps coastlines, clip them to the tile and add the missing segments 
+--   along edges of the tile to fully enclosed the required area.
+-- * If the tile fully inscribes islands, pass them through and add the tile envelope as an outer ring.
+-- * If the tile contains no coastlines, get all the coastline segments south of the tile:
+--     * If the northernmost segment is running east-to-west then we're in the ocean, return the tile envelope.
+--     * Else we're on land, return null.
+--
+-- ## Caveats
+-- * If your database contains incomplete data, certain tiles containing no coastlines will not render correctly.
+-- 
+-- 
 CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
-  RETURNS TABLE(_geom geometry)
-  LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+  RETURNS geometry(multipolygon, 3857)
+  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
-  BEGIN
-    RETURN QUERY
     WITH
     envelope AS (
       SELECT
@@ -26,13 +64,6 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
         ST_SetSRID(ST_Point(ST_XMin(env_geom), ST_YMin(env_geom)), 3857) AS bottomLeft,
         ST_SetSRID(ST_Point(ST_XMax(env_geom), ST_YMin(env_geom)), 3857) AS bottomRight
     ),
-    -- Coastlines in OpenStreetMap are expected to always be mapped as ways bounding the ocean
-    -- on their right side (winding counterclockwise). All ways must be connected by their endpoints
-    -- without gaps to fully inscribe continents and islands. No coastlines should be wound clockwise.
-    --
-    -- Using these assumptions, we can form a a multipolygon geometry for each tile that represents
-    -- the filled ocean area without needing to pre-render the entire ocean.
-    --
     -- First, we fetch all the coastlines in the tile and clip them to the bounds of the tile.
     coastline_raw AS (
       SELECT ST_Intersection(geom, env_geom) AS geom
@@ -417,12 +448,11 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
             -- but this will not always work with extracts, so use this safer option.
             WHEN (SELECT flag FROM blank_tile_is_ocean) THEN
               -- If we're in the ocean then just return the tile's bounding box
-              env_geom
+              ST_Multi(env_geom)
             ELSE
               NULL
           END
       END AS geom
       FROM ocean_multipolygon
   ;
-END;
 $$;

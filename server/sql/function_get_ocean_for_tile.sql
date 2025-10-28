@@ -1,31 +1,30 @@
 CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
-  RETURNS TABLE(geom geometry)
+  RETURNS TABLE(_geom geometry)
   LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
   AS $$
   BEGIN
-  RETURN QUERY EXECUTE format($fmt$
+    RETURN QUERY
     WITH
     envelope AS (
       SELECT
-        %1$L::geometry AS env_geom,
-        ST_Area(%1$L::geometry) * 0.00001 AS min_area,
-        (ST_XMax(%1$L::geometry) - ST_XMin(%1$L::geometry)) AS env_width,
-        (ST_YMax(%1$L::geometry) - ST_YMin(%1$L::geometry)) AS env_height,
-        ((ST_XMax(%1$L::geometry) - ST_XMin(%1$L::geometry)))/4096 * 2 AS simplify_tolerance,
+        ST_Area(env_geom) * 0.00001 AS min_area,
+        (ST_XMax(env_geom) - ST_XMin(env_geom)) AS env_width,
+        (ST_YMax(env_geom) - ST_YMin(env_geom)) AS env_height,
+        ((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2 AS simplify_tolerance,
 
         -- A VERY skinny bounding box stretching from the bottom left corner of the envelope
         -- to the interior of Antarctica (roughly -85° Lat), expected to be south of all valid coastline features
-        ST_MakeEnvelope(ST_XMin(%1$L::geometry), -20000000, ST_XMin(%1$L::geometry) + 0.000000001, ST_YMin(%1$L::geometry), 3857) AS tile_to_antarctica_bbox,
+        ST_MakeEnvelope(ST_XMin(env_geom), -20000000, ST_XMin(env_geom) + 0.000000001, ST_YMin(env_geom), 3857) AS tile_to_antarctica_bbox,
 
-        ST_XMax(%1$L::geometry) AS rightX,
-        ST_XMin(%1$L::geometry) AS leftX,
-        ST_YMax(%1$L::geometry) AS topY,
-        ST_YMin(%1$L::geometry) AS bottomY,
+        ST_XMax(env_geom) AS rightX,
+        ST_XMin(env_geom) AS leftX,
+        ST_YMax(env_geom) AS topY,
+        ST_YMin(env_geom) AS bottomY,
 
-        ST_SetSRID(ST_Point(ST_XMin(%1$L::geometry), ST_YMax(%1$L::geometry)), 3857) AS topLeft,
-        ST_SetSRID(ST_Point(ST_XMax(%1$L::geometry), ST_YMax(%1$L::geometry)), 3857) AS topRight,
-        ST_SetSRID(ST_Point(ST_XMin(%1$L::geometry), ST_YMin(%1$L::geometry)), 3857) AS bottomLeft,
-        ST_SetSRID(ST_Point(ST_XMax(%1$L::geometry), ST_YMin(%1$L::geometry)), 3857) AS bottomRight
+        ST_SetSRID(ST_Point(ST_XMin(env_geom), ST_YMax(env_geom)), 3857) AS topLeft,
+        ST_SetSRID(ST_Point(ST_XMax(env_geom), ST_YMax(env_geom)), 3857) AS topRight,
+        ST_SetSRID(ST_Point(ST_XMin(env_geom), ST_YMin(env_geom)), 3857) AS bottomLeft,
+        ST_SetSRID(ST_Point(ST_XMax(env_geom), ST_YMin(env_geom)), 3857) AS bottomRight
     ),
     -- Coastlines in OpenStreetMap are expected to always be mapped as ways bounding the ocean
     -- on their right side (winding counterclockwise). All ways must be connected by their endpoints
@@ -365,7 +364,7 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
         -- If the tile fully contains at least one island, but doesn't have
         -- any coastline intesecting the edge of the tile, then we need to
         -- add the tile bounding box as an exterior ring
-        SELECT ST_Boundary(%1$L::geometry) AS geom
+        SELECT ST_Boundary(env_geom) AS geom
         WHERE (SELECT count(geom) FROM coastline_open_segments) = 0
           AND (SELECT count(geom) FROM coastline_already_closed_segments LIMIT 1) > 0
     ),
@@ -418,13 +417,12 @@ CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
             -- but this will not always work with extracts, so use this safer option.
             WHEN (SELECT flag FROM blank_tile_is_ocean) THEN
               -- If we're in the ocean then just return the tile's bounding box
-              %1$L::geometry
+              env_geom
             ELSE
               NULL
           END
       END AS geom
       FROM ocean_multipolygon
   ;
-  $fmt$, env_geom);
 END;
 $$;

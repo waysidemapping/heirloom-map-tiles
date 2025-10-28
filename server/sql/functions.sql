@@ -660,7 +660,12 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         SELECT id, tags, geom, area_3857, osm_type
         FROM area_features_without_ocean
       UNION ALL
-        SELECT NULL AS id, '{"natural": "coastline"}'::jsonb AS tags, geom, NULL AS area_3857, NULL AS osm_type
+        SELECT
+          NULL::int8 AS id,
+          '{"natural": "coastline"}'::jsonb AS tags,
+          _geom AS geom,
+          NULL::real AS area_3857,
+          NULL::text AS osm_type
         FROM function_get_ocean_for_tile(env_geom)
     ),
     mvt_area_features AS (

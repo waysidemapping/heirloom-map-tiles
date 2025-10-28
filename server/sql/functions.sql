@@ -760,7 +760,7 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y in
   LANGUAGE sql VOLATILE STRICT PARALLEL SAFE
   AS $function_body$
   -- planning optimization can change a lot based on parameter values so don't used cached plans
-  SET LOCAL plan_cache_mode = force_custom_plan;
+  SET plan_cache_mode = force_custom_plan;
   SELECT * FROM function_get_heirloom_tile_for_envelope(z, x, y, ST_TileEnvelope(z, x, y), ((ST_XMax(ST_TileEnvelope(z, x, y)) - ST_XMin(ST_TileEnvelope(z, x, y))) / 1024.0)::real);
 $function_body$;
 

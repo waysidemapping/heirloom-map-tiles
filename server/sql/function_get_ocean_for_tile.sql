@@ -6,10 +6,9 @@
 --
 -- ## What you get
 --
--- This function returns a multipolygon representing the area of ocean in the given
--- envelope `env_geom` (probably a map tile), or null if the area contains no ocean.
--- The output is suitable for rendering the ocean with a fill but not with an outline since
--- the shape may contain the tile edges.
+-- This function returns a multipolygon representing the area of ocean in the tile given at
+-- `z`/`x`/`y`, or null if the area contains no ocean. The output is suitable for rendering
+-- the ocean with a fill but not with an outline since the shape may contain the tile edges.
 -- 
 -- This is done per-tile with no global preprocessing. Thus, it's compatible with databases
 -- receiving frequent updates.
@@ -40,36 +39,54 @@
 -- * If your database contains incomplete data, certain tiles containing no coastlines will not render correctly.
 -- 
 -- 
-CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(env_geom geometry)
-RETURNS geometry(multipolygon, 3857)
-LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $$
+
+CREATE OR REPLACE FUNCTION function_get_ocean_for_tile(_z integer, _x integer, _y integer)
+RETURNS TABLE (_geom geometry(multipolygon, 3857))
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+  DECLARE
+    env_geom geometry;
+    min_area double precision;
+    leftX double precision;
+    rightX double precision;
+    bottomY double precision;
+    topY double precision;
+    topLeft geometry;
+    topRight geometry;
+    bottomLeft geometry;
+    bottomRight geometry;
+    env_width double precision;
+    env_height double precision;
+    simplify_tolerance double precision;
+    tile_to_antarctica_bbox geometry;
+  BEGIN
+    env_geom := ST_TileEnvelope(_z, _x, _y);
+    min_area := ST_Area(env_geom) * 0.00001;
+
+    leftX := ST_XMin(env_geom);
+    rightX := ST_XMax(env_geom);
+    bottomY := ST_YMin(env_geom);
+    topY := ST_YMax(env_geom);
+
+    topLeft := ST_SetSRID(ST_Point(leftX, topY), 3857);
+    topRight := ST_SetSRID(ST_Point(rightX, topY), 3857);
+    bottomLeft := ST_SetSRID(ST_Point(leftX, bottomY), 3857);
+    bottomRight := ST_SetSRID(ST_Point(rightX, bottomY), 3857);
+
+    env_width := rightX - leftX;
+    env_height := topY - bottomY;
+    simplify_tolerance := env_width / 4096 * 2;
+
+    -- A VERY skinny bounding box stretching from the bottom left corner of the tile
+    -- to the interior of Antarctica (roughly -85° Lat), expected to be south of all valid coastline features
+    tile_to_antarctica_bbox := ST_MakeEnvelope(leftX, -20000000, leftX + 0.000000001, bottomY, 3857);
+
+    RETURN QUERY
     WITH
-    envelope AS (
-      SELECT
-        ST_Area(env_geom) * 0.00001 AS min_area,
-        (ST_XMax(env_geom) - ST_XMin(env_geom)) AS env_width,
-        (ST_YMax(env_geom) - ST_YMin(env_geom)) AS env_height,
-        ((ST_XMax(env_geom) - ST_XMin(env_geom)))/4096 * 2 AS simplify_tolerance,
-
-        -- A VERY skinny bounding box stretching from the bottom left corner of the envelope
-        -- to the interior of Antarctica (roughly -85° Lat), expected to be south of all valid coastline features
-        ST_MakeEnvelope(ST_XMin(env_geom), -20000000, ST_XMin(env_geom) + 0.000000001, ST_YMin(env_geom), 3857) AS tile_to_antarctica_bbox,
-
-        ST_XMax(env_geom) AS rightX,
-        ST_XMin(env_geom) AS leftX,
-        ST_YMax(env_geom) AS topY,
-        ST_YMin(env_geom) AS bottomY,
-
-        ST_SetSRID(ST_Point(ST_XMin(env_geom), ST_YMax(env_geom)), 3857) AS topLeft,
-        ST_SetSRID(ST_Point(ST_XMax(env_geom), ST_YMax(env_geom)), 3857) AS topRight,
-        ST_SetSRID(ST_Point(ST_XMin(env_geom), ST_YMin(env_geom)), 3857) AS bottomLeft,
-        ST_SetSRID(ST_Point(ST_XMax(env_geom), ST_YMin(env_geom)), 3857) AS bottomRight
-    ),
     -- First, we fetch all the coastlines in the tile and clip them to the bounds of the tile.
     coastline_raw AS (
       SELECT ST_Intersection(geom, env_geom) AS geom
-      FROM coastline, envelope env
+      FROM coastline
       WHERE geom && env_geom
         -- Ignore very small islands. This will not work if the island is mapped using more than one way.
         AND (area_3857 IS NULL OR area_3857 > min_area)
@@ -77,7 +94,7 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
     -- Create continuous coastline segments by merging the linestrings together based on their endpoints.
     coastline_merged_segments AS (
       SELECT (ST_Dump(ST_Multi(ST_Simplify(ST_LineMerge(ST_Collect(geom)), simplify_tolerance, true)))).geom AS geom
-      FROM coastline_raw, envelope
+      FROM coastline_raw
       GROUP BY simplify_tolerance
     ),
     -- Fetch only the unclosed linestrings. We need to manually close them in order for the
@@ -118,7 +135,7 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
             3 + (1 - (x - leftX) / env_height)
         END
       ) AS rn
-      FROM coastline_open_segment_terminus_points, envelope env
+      FROM coastline_open_segment_terminus_points
     ),
     -- Determine if the first point is a startpoint.
     coastline_open_segment_terminus_points_ordered_is_first_start AS (
@@ -141,7 +158,9 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
           ELSE
             rn
         END AS rn
-      FROM coastline_open_segment_terminus_points_ordered, coastline_open_segment_terminus_points_ordered_is_first_start, coastline_open_segment_terminus_points_ordered_row_count
+      FROM coastline_open_segment_terminus_points_ordered,
+        coastline_open_segment_terminus_points_ordered_is_first_start,
+        coastline_open_segment_terminus_points_ordered_row_count
     ),
     -- Create a single table with one row per (endpoint, startpoint) pair.
     coastline_open_segment_terminus_points_paired AS (
@@ -365,7 +384,7 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
             END
           ELSE NULL
         END AS points_array
-      FROM coastline_open_segment_terminus_points_paired, envelope env
+      FROM coastline_open_segment_terminus_points_paired
     ),
     -- Build a single table of linestrings containing the the open segments and the connecting points built into lines.
     coastline_open_segments_and_closure_lines AS (
@@ -417,7 +436,7 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
     -- we can assume we have a table containing east-west segments.
     coastlines_between_tile_and_antarctica AS (
       SELECT (ST_Dump(ST_Multi(ST_LineMerge(ST_Collect(ST_Intersection(geom, tile_to_antarctica_bbox)))))).geom AS geom
-      FROM coastline, envelope env
+      FROM coastline
       WHERE geom && tile_to_antarctica_bbox
     ),
     -- Fetch the northmost coastline segment that's south of the tile bounds.
@@ -454,8 +473,9 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
             ELSE
               NULL
           END
-      END AS geom
+      END AS _geom
       FROM ocean_multipolygon
-  ;
+    ;
+  END;
 $$
 SET plan_cache_mode = force_custom_plan;

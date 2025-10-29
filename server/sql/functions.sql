@@ -1,8 +1,30 @@
-CREATE OR REPLACE FUNCTION function_get_area_features(z integer, env_geom geometry, min_area real, simplify_tolerance real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
-  LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
-  AS $$
+CREATE OR REPLACE FUNCTION z26_tile_range_for(z int, x int, y int)
+RETURNS TABLE (x_min int, x_max int, y_min int, y_max int)
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+  SELECT
+    x * (1 << (26 - z))             AS x_min,
+    ((x + 1) * (1 << (26 - z))) - 1 AS x_max,
+    y * (1 << (26 - z))             AS y_min,
+    ((y + 1) * (1 << (26 - z))) - 1 AS y_max;
+$$;
+
+CREATE OR REPLACE FUNCTION function_get_area_features(z integer, x integer, y integer)
+RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text)
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+  DECLARE
+    env_geom geometry;
+    env_width real;
+    min_extent real;
+    min_area real;
+    simplify_tolerance real;
   BEGIN
+    env_geom := ST_TileEnvelope(z, x, y);
+    env_width := ST_XMax(env_geom) - ST_XMin(env_geom);
+    min_extent := (env_width / 1024.0)::real;
+    min_area := power(min_extent * 4, 2)::real;
+    simplify_tolerance := (min_extent * 0.75)::real;
   IF z < 12 THEN
     RETURN QUERY
     WITH
@@ -125,11 +147,22 @@ END;
 $$
 SET plan_cache_mode = force_custom_plan;
 
-CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geometry, min_way_extent real, min_rel_extent real, simplify_tolerance real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _relation_ids int8[])
-  LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
-  AS $$
-    BEGIN
+CREATE OR REPLACE FUNCTION function_get_line_features(z integer, x integer, y integer)
+RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _relation_ids int8[])
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+  DECLARE
+    env_geom geometry;
+    env_width real;
+    min_way_extent real;
+    min_rel_extent real;
+    simplify_tolerance real;
+  BEGIN
+    env_geom := ST_TileEnvelope(z, x, y);
+    env_width := ST_XMax(env_geom) - ST_XMin(env_geom);
+    min_way_extent := (env_width / 1024.0)::real;
+    min_rel_extent := (min_way_extent * 192)::real;
+    simplify_tolerance := (min_way_extent * 0.75)::real;
     IF z < 12 THEN
       RETURN QUERY
       WITH
@@ -367,16 +400,33 @@ CREATE OR REPLACE FUNCTION function_get_line_features(z integer, env_geom geomet
         relation_ids
       FROM simplified_lines
       ;
-  END IF;
+    END IF;
   END;
 $$
 SET plan_cache_mode = force_custom_plan;
 
-CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geometry, wide_env_geom geometry, min_area real, max_area real, min_rel_extent real, max_rel_extent real)
-  RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text, _relation_ids int8[])
-  LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
-  AS $$
-    BEGIN
+CREATE OR REPLACE FUNCTION function_get_point_features(z integer, x integer, y integer)
+RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _area_3857 real, _osm_type text, _relation_ids int8[])
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+  DECLARE
+    env_geom geometry;
+    wide_env_geom geometry;
+    env_width real;
+    min_extent real;
+    min_area real;
+    max_area real;
+    min_rel_extent real;
+    max_rel_extent real;
+  BEGIN
+    env_geom := ST_TileEnvelope(z, x, y);
+    env_width := ST_XMax(env_geom) - ST_XMin(env_geom);
+    wide_env_geom := ST_Expand(env_geom, env_width);
+    min_extent := (env_width / 1024.0)::real;
+    min_area := power(min_extent * 32, 2)::real;
+    max_area := power(min_extent * 4096, 2)::real;
+    min_rel_extent := (min_extent * 192)::real;
+    max_rel_extent := (min_extent * 192 * 16)::real;
     IF z < 12 THEN
       RETURN QUERY
       WITH
@@ -646,16 +696,16 @@ CREATE OR REPLACE FUNCTION function_get_point_features(z integer, env_geom geome
         relation_ids
       FROM all_points
       ;
-  END IF;
+    END IF;
   END;
 $$
 SET plan_cache_mode = force_custom_plan;
 
-CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x integer, y integer, env_geom geometry, min_extent real)
-  RETURNS bytea
-  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $function_body$
-  WITH
+CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y integer)
+RETURNS bytea
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $function_body$
+    WITH
     area_features_without_ocean AS (
       SELECT
         _id AS id,
@@ -663,7 +713,7 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         _geom AS geom,
         _area_3857 AS area_3857,
         _osm_type AS osm_type
-      FROM function_get_area_features(z, env_geom, power(min_extent * 4, 2)::real, (min_extent * 0.75)::real)
+      FROM function_get_area_features(z, x, y)
     ),
     area_features AS (
         SELECT id, tags, geom, area_3857, osm_type
@@ -672,16 +722,17 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         SELECT
           NULL::int8 AS id,
           '{"natural": "coastline"}'::jsonb AS tags,
-          function_get_ocean_for_tile(env_geom) AS geom,
+          _geom AS geom,
           NULL::real AS area_3857,
           NULL::text AS osm_type
+          FROM function_get_ocean_for_tile(z, x, y)
     ),
     mvt_area_features AS (
       SELECT
         id * 10 + (CASE WHEN osm_type = 'w' THEN 2 WHEN osm_type = 'r' THEN 3 ELSE 0 END) AS feature_id,
         tags,
         -- area_3857,
-        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
+        ST_AsMVTGeom(geom, ST_TileEnvelope(z, x, y), 4096, 64, true) AS geom
       FROM area_features
     ),
     line_features AS (
@@ -690,13 +741,13 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         _tags AS tags,
         _geom AS geom,
         _relation_ids AS relation_ids
-      FROM function_get_line_features(z, env_geom, min_extent, (min_extent * 192)::real, (min_extent * 0.75)::real)
+      FROM function_get_line_features(z, x, y)
     ),
     mvt_line_features AS (
       SELECT
         id * 10 + 2 AS feature_id,
         tags,
-        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
+        ST_AsMVTGeom(geom, ST_TileEnvelope(z, x, y), 4096, 64, true) AS geom
       FROM line_features
     ),
     point_features AS (
@@ -707,14 +758,14 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         _area_3857 AS area_3857,
         _osm_type AS osm_type,
         _relation_ids AS relation_ids
-      FROM function_get_point_features(z, env_geom, ST_Expand(env_geom, ST_XMax(env_geom) - ST_XMin(env_geom)), power(min_extent * 32, 2)::real, power(min_extent * 4096, 2)::real, (min_extent * 192)::real, (min_extent * 192 * 16)::real)
+      FROM function_get_point_features(z, x, y)
     ),
     mvt_point_features AS (
       SELECT
         id * 10 + (CASE WHEN osm_type = 'n' THEN 1 WHEN osm_type = 'w' THEN 2 WHEN osm_type = 'r' THEN 3 ELSE 0 END) AS feature_id,
         tags,
         -- area_3857,
-        ST_AsMVTGeom(geom, env_geom, 4096, 64, true) AS geom
+        ST_AsMVTGeom(geom, ST_TileEnvelope(z, x, y), 4096, 64, true) AS geom
       FROM point_features
     ),
     all_relation_ids AS (
@@ -753,7 +804,7 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
       SELECT
         id * 10 + 3 AS feature_id,
         tags,
-        env_geom AS geom
+        ST_TileEnvelope(z, x, y) AS geom
       FROM tagged_relation_features
     ),
     tiles AS (
@@ -766,14 +817,6 @@ CREATE OR REPLACE FUNCTION function_get_heirloom_tile_for_envelope(z integer, x 
         SELECT ST_AsMVT(mvt_point_features, 'point', 4096, 'geom', 'feature_id') AS mvt FROM mvt_point_features
     )
     SELECT string_agg(mvt, ''::bytea) FROM tiles;
-$function_body$
-SET plan_cache_mode = force_custom_plan;
-
-CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y integer)
-  RETURNS bytea
-  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-  AS $function_body$
-  SELECT * FROM function_get_heirloom_tile_for_envelope(z, x, y, ST_TileEnvelope(z, x, y), ((ST_XMax(ST_TileEnvelope(z, x, y)) - ST_XMin(ST_TileEnvelope(z, x, y))) / 1024.0)::real);
 $function_body$
 SET plan_cache_mode = force_custom_plan;
 

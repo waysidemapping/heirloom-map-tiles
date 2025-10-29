@@ -137,9 +137,9 @@ local node_relation_member_table = osm2pgsql.define_table({
     name = 'node_relation_member',
     ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
-        { column = 'member_index', type = 'int2' },
-        { column = 'member_id', type = 'int8' },
-        { column = 'member_role', type = 'text' }
+        { column = 'member_index', type = 'int2', not_null = true },
+        { column = 'member_id', type = 'int8', not_null = true },
+        { column = 'member_role', type = 'text', not_null = true }
     },
     indexes = {
         { column = {'relation_id', 'member_role'}, method = 'btree' },
@@ -152,9 +152,9 @@ local way_relation_member_table = osm2pgsql.define_table({
     name = 'way_relation_member',
     ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
-        { column = 'member_index', type = 'int2' },
-        { column = 'member_id', type = 'int8' },
-        { column = 'member_role', type = 'text' }
+        { column = 'member_index', type = 'int2', not_null = true },
+        { column = 'member_id', type = 'int8', not_null = true },
+        { column = 'member_role', type = 'text', not_null = true }
     },
     indexes = {
         { column = {'relation_id', 'member_role'}, method = 'btree' },
@@ -167,9 +167,9 @@ local relation_relation_member_table = osm2pgsql.define_table({
     name = 'relation_relation_member',
     ids = { type = 'relation', id_column = 'relation_id', create_index = 'auto' },
     columns = {
-        { column = 'member_index', type = 'int2' },
-        { column = 'member_id', type = 'int8' },
-        { column = 'member_role', type = 'text' }
+        { column = 'member_index', type = 'int2', not_null = true },
+        { column = 'member_id', type = 'int8', not_null = true },
+        { column = 'member_role', type = 'text', not_null = true }
     },
     indexes = {
         { column = {'relation_id', 'member_role'}, method = 'btree' },

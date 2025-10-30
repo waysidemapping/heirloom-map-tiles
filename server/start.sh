@@ -272,10 +272,10 @@ else
         "$PLANET_FILE"
 
     echo "Running post-import SQL queries..."
-    sudo -u postgres psql "$DB_NAME" --file="sql/postimport_area_relation.sql" &
-    sudo -u postgres psql "$DB_NAME" --file="sql/postimport_node.sql" &
-    sudo -u postgres psql "$DB_NAME" --file="sql/postimport_non_area_relation.sql" &
-    sudo -u postgres psql "$DB_NAME" --file="sql/postimport_way_no_explicit_line.sql" &
+    sudo -u postgres psql "$DB_NAME" --file="sql/post_import/area_relation.sql" &
+    sudo -u postgres psql "$DB_NAME" --file="sql/post_import/node.sql" &
+    sudo -u postgres psql "$DB_NAME" --file="sql/post_import/non_area_relation.sql" &
+    sudo -u postgres psql "$DB_NAME" --file="sql/post_import/way_no_explicit_line.sql" &
     wait
 fi
 

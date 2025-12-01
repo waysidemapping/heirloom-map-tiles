@@ -3,10 +3,10 @@
 set -x # echo on
 
 ARCHITECTURE=$(uname -m)
-SCRATCH_DIR="/var/tmp/app"
+PERSISTENT_DIR="/var/lib/app"
 
-PLANET_FILE="$SCRATCH_DIR/planet-latest.osm.pbf"
-PLANET_URL="https://download.geofabrik.de/north-america/us/new-york-latest.osm.pbf"
+PLANET_FILE="$PERSISTENT_DIR/planet-latest.osm.pbf"
+PLANET_URL="https://download.geofabrik.de/north-america/us/california-latest.osm.pbf"
 # "https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf"
 
 PG_VERSION="18"
@@ -18,7 +18,7 @@ OSM2PGSQL_VERSION="2.2.0"
 OSM2PGSQL_DIR="/usr/local/osm2pgsql"
 LUA_STYLE_FILE="osm2pgsql_style_config.lua"
 
-FLAT_NODES_FILE="$SCRATCH_DIR/flatnodes"
+FLAT_NODES_FILE="$PERSISTENT_DIR/flatnodes"
 
 MARTIN_CONFIG_FILE="martin_config.yaml"
 MARTIN_VERSION="0.19.3"
@@ -26,8 +26,8 @@ MARTIN_VERSION="0.19.3"
 [[ "$ARCHITECTURE" == "x86_64" || "$ARCHITECTURE" == "aarch64" ]] && echo "Architecture: $ARCHITECTURE" || { echo "Unsupported architecture: $ARCHITECTURE"; exit 1; }
 
 # Create helper directory
-if [ ! -d "$SCRATCH_DIR" ]; then
-    mkdir -p "$SCRATCH_DIR"
+if [ ! -d "$PERSISTENT_DIR" ]; then
+    mkdir -p "$PERSISTENT_DIR"
 fi
 
 # Create linux user matching PG role: needed for pgsql peer authentication 

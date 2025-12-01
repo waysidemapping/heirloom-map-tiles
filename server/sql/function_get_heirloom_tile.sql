@@ -83,13 +83,9 @@ AS $function_body$
       FROM all_relation_ids
     ),
     relation_features AS (
-        SELECT r.id, r.tags::jsonb
-        FROM non_area_relation r
-        JOIN unique_relation_ids linked ON r.id = linked.relation_id
-      UNION ALL
-        SELECT r.id, r.tags::jsonb
-        FROM area_relation r
-        JOIN unique_relation_ids linked ON r.id = linked.relation_id
+      SELECT r.id, r.tags
+      FROM planet_osm_rels r
+      JOIN unique_relation_ids linked ON r.id = linked.relation_id
     ),
     tagged_relation_features AS (
       SELECT

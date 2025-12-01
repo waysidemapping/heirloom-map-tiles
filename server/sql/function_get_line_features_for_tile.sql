@@ -35,7 +35,7 @@ AS $$
           AND r.geom && %2$L
           AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
           AND r.extent >= %4$L
-          AND r.tags @> 'type => route'
+          AND r.tags @> '{"type": "route"}'
           AND r.tags ? 'route'
       ),
       waterways AS (
@@ -51,7 +51,7 @@ AS $$
         WHERE w.geom && %2$L
           AND r.geom && %2$L
           AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND r.tags @> 'type => waterway'
+          AND r.tags @> '{"type": "waterway"}'
           AND r.extent >= %4$L
       ),
       admin_boundaries AS (
@@ -65,15 +65,15 @@ AS $$
         JOIN area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
           AND r.geom && %2$L
-          AND r.tags @> 'boundary => administrative'
+          AND r.tags @> '{"boundary": "administrative"}'
           AND (
-            r.tags @> 'admin_level => 1'
-            OR r.tags @> 'admin_level => 2'
-            OR r.tags @> 'admin_level => 3'
-            OR r.tags @> 'admin_level => 4'
-            OR r.tags @> 'admin_level => 5'
+            r.tags @> '{"admin_level": "1"}'
+            OR r.tags @> '{"admin_level": "2"}'
+            OR r.tags @> '{"admin_level": "3"}'
+            OR r.tags @> '{"admin_level": "4"}'
+            OR r.tags @> '{"admin_level": "5"}'
             OR (
-              %1$L >= 6 AND r.tags @> 'admin_level => 6'
+              %1$L >= 6 AND r.tags @> '{"admin_level": "6"}'
             )
           )
       ),
@@ -89,7 +89,11 @@ AS $$
       ),
       collapsed AS (
         SELECT
-          slice(ANY_VALUE(tags), ARRAY[{{LOW_ZOOM_LINE_KEY_LIST}}])::jsonb
+          COALESCE((
+            SELECT jsonb_object_agg(key, value)
+            FROM jsonb_each(ANY_VALUE(tags))
+            WHERE key IN ({{LOW_ZOOM_LINE_KEY_LIST}})
+          ), '{}'::jsonb)
             || COALESCE(jsonb_object_agg('m.' || relation_id::text, member_role) FILTER (WHERE relation_id IS NOT NULL), '{}'::jsonb) AS tags,
           ANY_VALUE(geom) AS geom,
           ARRAY_AGG(relation_id) AS relation_ids
@@ -125,22 +129,22 @@ AS $$
         SELECT id, tags, geom
         FROM ways_in_tile
         WHERE (
-          tags @> 'highway => motorway'
-          OR tags @> 'highway => motorway_link'
-          OR tags @> 'highway => trunk'
-          OR tags @> 'highway => trunk_link'
-          OR tags @> 'highway => primary'
-          OR tags @> 'highway => primary_link'
-          OR tags @> 'highway => secondary'
-          OR tags @> 'highway => secondary_link'
-          OR tags @> 'highway => tertiary'
-          OR tags @> 'highway => tertiary_link'
-          OR tags @> 'highway => residential'
-          OR tags @> 'highway => unclassified'
-          OR tags @> 'highway => pedestrian'
+          tags @> '{"highway": "motorway"}'
+          OR tags @> '{"highway": "motorway_link"}'
+          OR tags @> '{"highway": "trunk"}'
+          OR tags @> '{"highway": "trunk_link"}'
+          OR tags @> '{"highway": "primary"}'
+          OR tags @> '{"highway": "primary_link"}'
+          OR tags @> '{"highway": "secondary"}'
+          OR tags @> '{"highway": "secondary_link"}'
+          OR tags @> '{"highway": "tertiary"}'
+          OR tags @> '{"highway": "tertiary_link"}'
+          OR tags @> '{"highway": "residential"}'
+          OR tags @> '{"highway": "unclassified"}'
+          OR tags @> '{"highway": "pedestrian"}'
         ) OR (
           tags ? 'highway'
-          AND NOT (tags @> 'highway => footway' AND tags ? 'footway')
+          AND NOT (tags @> '{"highway": "footway"}' AND tags ? 'footway')
           AND %1$L >= 13
         ) OR (
           tags ? 'highway'
@@ -148,7 +152,7 @@ AS $$
         ) OR (
           tags ?| ARRAY['waterway']
         ) OR (
-          tags @> 'route => ferry'
+          tags @> '{"route": "ferry"}'
         ) OR (
           tags ? 'railway'
           AND NOT tags ? 'service'
@@ -160,7 +164,7 @@ AS $$
           AND is_explicit_line
           AND %1$L >= 13
         ) OR (
-          tags @> 'natural => coastline'
+          tags @> '{"natural": "coastline"}'
           AND %1$L >= 13
         ) OR (
           tags ?| ARRAY['golf']
@@ -186,7 +190,7 @@ AS $$
           AND r.geom && %2$L
           AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
           AND r.extent >= %4$L
-          AND r.tags @> 'type => route'
+          AND r.tags @> '{"type": "route"}'
           AND r.tags ? 'route'
       ),
       waterways AS (
@@ -202,7 +206,7 @@ AS $$
         WHERE w.geom && %2$L
           AND r.geom && %2$L
           AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND r.tags @> 'type => waterway'
+          AND r.tags @> '{"type": "waterway"}'
           AND r.extent >= %4$L
       ),
       admin_boundaries AS (
@@ -216,7 +220,7 @@ AS $$
         JOIN area_relation r ON rw.relation_id = r.id
         WHERE w.geom && %2$L
           AND r.geom && %2$L
-          AND r.tags @> 'boundary => administrative'
+          AND r.tags @> '{"boundary": "administrative"}'
       ),
       combined_lines AS (
           SELECT id, tags, geom, NULL::text AS member_role, NULL::int8 AS relation_id
@@ -233,7 +237,7 @@ AS $$
       ),
       collapsed AS (
         SELECT id,
-          ANY_VALUE(tags)::jsonb
+          ANY_VALUE(tags)
             || COALESCE(jsonb_object_agg('m.' || relation_id::text, member_role) FILTER (WHERE relation_id IS NOT NULL), '{}'::jsonb) AS tags,
           ANY_VALUE(geom) AS geom,
           ARRAY_AGG(relation_id) AS relation_ids

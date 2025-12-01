@@ -67,40 +67,40 @@ AS $$
       low_zoom_small_points AS (
         SELECT * FROM small_points
         WHERE (
-          tags @> 'place => continent'
-          OR tags @> 'place => ocean'
-          OR tags @> 'place => sea'
-          OR tags @> 'place => country'
-          OR tags @> 'place => state'
-          OR tags @> 'place => province'
+          tags @> '{"place": "continent"}'
+          OR tags @> '{"place": "ocean"}'
+          OR tags @> '{"place": "sea"}'
+          OR tags @> '{"place": "country"}'
+          OR tags @> '{"place": "state"}'
+          OR tags @> '{"place": "province"}'
         ) OR (
           (
-            tags @> 'place => city'
+            tags @> '{"place": "city"}'
           )
           AND %1$L >= 4
         ) OR (
           (
-            tags @> 'place => town'
+            tags @> '{"place": "town"}'
           )
           AND %1$L >= 6
         ) OR (
           (
-            tags @> 'place => village'
+            tags @> '{"place": "village"}'
           )
           AND %1$L >= 7
         ) OR (
           (
-            tags @> 'place => hamlet'
-            OR tags @> 'natural => peak'
-            OR tags @> 'natural => volcano'
+            tags @> '{"place": "hamlet"}'
+            OR tags @> '{"natural": "peak"}'
+            OR tags @> '{"natural": "volcano"}'
           )
           AND %1$L >= 8
         ) OR (
           (
-            tags @> 'place => locality'
-            OR tags @> 'public_transport => station'
-            OR tags @> 'aeroway => aerodrome'
-            OR tags @> 'highway => motorway_junction'
+            tags @> '{"place": "locality"}'
+            OR tags @> '{"public_transport": "station"}'
+            OR tags @> '{"aeroway": "aerodrome"}'
+            OR tags @> '{"highway": "motorway_junction"}'
           )
           AND %1$L >= 9
         )
@@ -124,7 +124,7 @@ AS $$
           tags ?| ARRAY['advertising', 'amenity', 'boundary', 'building', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'miltary', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']
         ) OR (
           tags ? 'natural'
-          AND NOT tags @> 'natural => coastline'
+          AND NOT tags @> '{"natural": "coastline"}'
         ) OR (
           tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
           AND is_node_or_explicit_area
@@ -143,19 +143,19 @@ AS $$
         WHERE label_point_z26_x BETWEEN %8$L AND %9$L
             AND label_point_z26_y BETWEEN %10$L AND %11$L
           AND (
-            (tags @> 'type => route' AND tags ? 'route')
-            OR tags @> 'type => waterway'
+            (tags @> '{"type": "route"}' AND tags ? 'route"}')
+            OR tags @> '{"type": "waterway"}'
           )
           AND extent > %6$L
           AND extent < %7$L
           AND %1$L >= 4
       ),
       all_points AS (
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
+          SELECT id, tags, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
         UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
+          SELECT id, tags, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
         UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
+          SELECT id, tags, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
       )
       SELECT
         id,
@@ -195,22 +195,22 @@ AS $$
       low_zoom_small_points AS (
         SELECT * FROM small_points
         WHERE
-          tags @> 'place => continent'
-          OR tags @> 'place => ocean'
-          OR tags @> 'place => sea'
-          OR tags @> 'place => country'
-          OR tags @> 'place => state'
-          OR tags @> 'place => province'
-          OR tags @> 'place => city'
-          OR tags @> 'place => town'
-          OR tags @> 'place => village'
-          OR tags @> 'place => hamlet'
-          OR tags @> 'natural => peak'
-          OR tags @> 'natural => volcano'
-          OR tags @> 'place => locality'
-          OR tags @> 'public_transport => station'
-          OR tags @> 'aeroway => aerodrome'
-          OR tags @> 'highway => motorway_junction'
+          tags @> '{"place": "continent"}'
+          OR tags @> '{"place": "ocean"}'
+          OR tags @> '{"place": "sea"}'
+          OR tags @> '{"place": "country"}'
+          OR tags @> '{"place": "state"}'
+          OR tags @> '{"place": "province"}'
+          OR tags @> '{"place": "city"}'
+          OR tags @> '{"place": "town"}'
+          OR tags @> '{"place": "village"}'
+          OR tags @> '{"place": "hamlet"}'
+          OR tags @> '{"natural": "peak"}'
+          OR tags @> '{"natural": "volcano"}'
+          OR tags @> '{"place": "locality"}'
+          OR tags @> '{"public_transport": "station"}'
+          OR tags @> '{"aeroway": "aerodrome"}'
+          OR tags @> '{"highway": "motorway_junction"}'
       ),
       ranked_small_points AS (
         SELECT *,
@@ -225,7 +225,7 @@ AS $$
             AND (tags ? 'name' OR tags ? 'wikidata' OR %1$L >= 15)
           ) OR (
             tags ? 'natural'
-            AND NOT tags @> 'natural => coastline'
+            AND NOT tags @> '{"natural": "coastline"}'
           ) OR (
             tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
             AND is_node_or_explicit_area
@@ -276,7 +276,7 @@ AS $$
           tags ?| ARRAY['advertising', 'amenity', 'boundary', 'building', 'club', 'craft', 'education', 'emergency', 'golf', 'healthcare', 'historic', 'indoor', 'information', 'landuse', 'leisure', 'man_made', 'miltary', 'office', 'place', 'playground', 'public_transport', 'shop', 'tourism']
         ) OR (
           tags ? 'natural'
-          AND NOT tags @> 'natural => coastline'
+          AND NOT tags @> '{"natural": "coastline"}'
         ) OR (
           tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
           AND is_node_or_explicit_area
@@ -296,19 +296,19 @@ AS $$
           AND label_point_z26_y BETWEEN %10$L AND %11$L
           AND extent BETWEEN %6$L AND %7$L
           AND (
-            (tags @> 'type => route' AND tags ? 'route')
-            OR tags @> 'type => waterway'
+            (tags @> '{"type": "route"}' AND tags ? 'route')
+            OR tags @> '{"type": "waterway"}'
           )
           AND %1$L >= 4
       ),
       all_points AS (
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
+          SELECT id, tags, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
         UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM reduced_small_points
+          SELECT id, tags, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM reduced_small_points
         UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
+          SELECT id, tags, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
         UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
+          SELECT id, tags, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
       )
       SELECT
         id,

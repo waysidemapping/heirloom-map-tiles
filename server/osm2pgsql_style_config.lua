@@ -2,7 +2,7 @@ local node_table = osm2pgsql.define_table({
     name = 'node',
     ids = { type = 'node', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'point', proj = '3857', not_null = true },
         { column = 'z26_x', type = 'int', not_null = true },
         { column = 'z26_y', type = 'int', not_null = true }
@@ -19,7 +19,7 @@ local way_table = osm2pgsql.define_table({
     name = 'way',
     ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'linestring', proj = '3857', not_null = true }
     },
     indexes = {
@@ -34,7 +34,7 @@ local way_no_explicit_area_table = osm2pgsql.define_table({
     name = 'way_no_explicit_area',
     ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'linestring', proj = '3857', not_null = true },
         { column = 'is_explicit_line', type = 'boolean', not_null = true },
         { column = 'extent', type = 'real', not_null = true }
@@ -53,7 +53,7 @@ local way_no_explicit_line_table = osm2pgsql.define_table({
     name = 'way_no_explicit_line',
     ids = { type = 'way', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'polygon', proj = '3857', not_null = true },
         { column = 'is_explicit_area', type = 'boolean', not_null = true },
         { column = 'area_3857', type = 'real', not_null = true },
@@ -92,7 +92,7 @@ local area_relation_table = osm2pgsql.define_table({
     name = 'area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'multipolygon', proj = '3857', not_null = true },
         { column = 'extent', type = 'real' },
         { column = 'area_3857', type = 'real' },
@@ -117,7 +117,7 @@ local non_area_relation_table = osm2pgsql.define_table({
     name = 'non_area_relation',
     ids = { type = 'relation', id_column = 'id', create_index = 'primary_key' },
     columns = {
-        { column = 'tags', type = 'hstore', not_null = true },
+        { column = 'tags', type = 'jsonb', not_null = true },
         { column = 'geom', type = 'geometrycollection', proj = '3857' },
         { column = 'bbox', type = 'text', sql_type = 'GEOMETRY(Polygon, 3857)' },
         { column = 'extent', type = 'real' },

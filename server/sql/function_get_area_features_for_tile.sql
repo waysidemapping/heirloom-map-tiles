@@ -43,12 +43,12 @@ AS $$
         SELECT * FROM areas
         WHERE tags ? 'natural'
           -- coastline areas are handled separately
-          AND NOT tags @> 'natural => coastline'
+          AND NOT tags @> '{"natural": "coastline"}'
       UNION ALL
         SELECT * FROM areas
         -- only certain boundaries are relevant for rendering as areas
-        WHERE tags @> 'boundary => protected_area'
-          OR tags @> 'boundary => aboriginal_lands'
+        WHERE tags @> '{"boundary": "protected_area"}'
+          OR tags @> '{"boundary": "aboriginal_lands"}'
       UNION ALL
         SELECT * FROM areas
         WHERE tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'power', 'railway', 'telecom', 'waterway']
@@ -61,7 +61,11 @@ AS $$
     -- filter tags to a small number of relevant keys
     tagged_areas AS (
       SELECT
-        slice(tags, ARRAY[{{LOW_ZOOM_AREA_KEY_LIST}}])::jsonb AS tags,
+        (
+          SELECT jsonb_object_agg(key, value)
+          FROM jsonb_each(tags)
+          WHERE key IN ({{LOW_ZOOM_AREA_KEY_LIST}})
+        ) AS tags,
         geom
       FROM deduped_areas
     )
@@ -101,12 +105,12 @@ AS $$
         SELECT * FROM areas
         WHERE tags ? 'natural'
           -- coastline areas are handled separately
-          AND NOT tags @> 'natural => coastline'
+          AND NOT tags @> '{"natural": "coastline"}'
       UNION ALL
         SELECT * FROM areas
         -- only certain boundaries are relevant for rendering as areas
-        WHERE tags @> 'boundary => protected_area'
-          OR tags @> 'boundary => aboriginal_lands'
+        WHERE tags @> '{"boundary": "protected_area"}'
+          OR tags @> '{"boundary": "aboriginal_lands"}'
       UNION ALL
         SELECT * FROM areas
         WHERE tags ? 'building'

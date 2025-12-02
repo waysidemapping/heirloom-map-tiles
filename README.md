@@ -35,7 +35,7 @@ Heirloom map tiles aren't for everyone. If you don't need Heirloom's power and c
 
 The Heirloom tile schema is tuned to be as close to OpenStreetMap as possible while maintaining reasonable tile sizes and render speeds. The basics are very simple:
 
-- There are only three layers: `point`, `line`, and `area`. Features may appear in multiple layers.
+- There are only three geometry layers: `point`, `line`, and `area`. Features may appear in multiple layers.
 - All features with specific top-level OSM keys are included (no matter what values).
 - All tags for certain keys and key prefixes are included as attributes (no matter what values).
 - Features may be filtered or aggregated depending on zoom level.

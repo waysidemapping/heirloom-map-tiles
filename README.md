@@ -2,7 +2,7 @@
 
 _Server-farm-to-table OpenStreetMap tiles_
 
-Heirloom is a special cultivar of [OpenStreetMap](https://www.openstreetmap.org/about/)-based vector tiles developed for artisan mapmakers. While mass-market solutions like [OpenMapTiles](https://openmaptiles.org/) are great for building simple basemaps, they trade off data fidelity for ease-of-use. Heirloom instead contains the full palette of flavors found in OSM data. Heirloom even supports live updates from OSM to ensure the freshest maps possible. Sure you could just pop open a can, but these are map tiles for people who prefer to make their own pasta sauce (and love to throw in a parmesan rind).
+Heirloom is a special cultivar of [OpenStreetMap](https://www.openstreetmap.org/about/)-based vector tiles developed for artisan mapmakers. While mass-market solutions like [OpenMapTiles](https://openmaptiles.org/) are great for building simple basemaps, they trade off data fidelity for ease-of-use. Heirloom instead contains the full palette of flavors found in OSM data. Heirloom even supports live updates from OSM to ensure the freshest maps possible. Sure it's easier to pop open a can of pasta sauce, but these are map tiles for people who prefer to whip up their own (and love to throw in a parmesan rind).
 
 ### 🍝 Features
 
@@ -29,8 +29,9 @@ Heirloom is a special cultivar of [OpenStreetMap](https://www.openstreetmap.org/
 Heirloom map tiles aren't for everyone. If you don't need Heirloom's power and complexity, consider working with something simpler.
 
 - [Sourdough](https://sourdough.osm.fyi/): If you don't need minutely updates, high-zoom tiles, or a hot-swappable schema, then you don't need to run a traditional tileserver. If you still want to work with raw OSM tags, definitely check out Sourdough by [@jake-low](https://github.com/jake-low/). Heirloom and Sourdough are cousins of sorts.
+- [OSM Spyglass](https://codeberg.org/jot/osm-spyglass): If you want to work with ALL tagged OSM features in vector tiles, Spyglass is a great solution.
 - [OpenMapTiles](https://openmaptiles.org/): If you just want an out-of-the-box basemap solution with broad support, you probably want OpenMapTiles. There are a few free tileservers providing tiles in this format, mainly the [OSM US Tileservice](https://tiles.openstreetmap.us/) and [OpenFreeMap](https://openfreemap.org/).
-- [Shortbread](https://shortbread-tiles.org/): If you're looking for a lean, general-purpose tile schema supported on openstreetmap.org, try Shortbread.
+- [Shortbread](https://shortbread-tiles.org/): If you're looking for a lean, general-purpose tile schema supported on openstreetmap.org, try Shortbread. Shortbread also supports minutely updates.
 
 ## Deploying an Heirloom tileserver
 

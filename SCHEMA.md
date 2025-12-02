@@ -39,7 +39,7 @@ In OpenStreetMap, coastline features model the boundary between land and ocean. 
 
 ## Layers
 
-Heirloom tiles have just four layers: three geometry layers (`point`, `line`, and `area`) and one meta layer (`relation`). Note that these do not correspond exactly to OSM entity types, and that the same feature may appear in multiple layers. Actual inclusion is dependent on factors such as tagging and zoom level.
+Heirloom tiles have just four layers: three geometry layers (`point`, `line`, and `area`) and one meta layer (`relation`). Note that these do not correspond exactly to OSM entity types, and that the same feature may appear in multiple layers. Actual inclusion depends on tagging, zoom level, etc.
 
 ### `area`
 
@@ -101,10 +101,10 @@ Features in the `relation` layer correspond to:
 
 ## Cheat sheet
 
-Top-level tag support:
+This table show top-level tag supportin Heirloom tiles. A checkmark (✔︎) means that if an OSM feature has a tag with the given key, that feature is eligible for inclusion in the given layer. Actual inclusion depends on geometry, zoom level, etc.
 
 | OSM key | `point` layer | `line` layer | `area` layer | `relation` layer | Closed way implies area | Irregularities |
-|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 |`aerialway`          |✔︎|✔︎|✔︎| |No |
 |`aeroway`            |✔︎|✔︎|✔︎| |No |
 |`advertising`        |✔︎| |✔︎| |Yes|

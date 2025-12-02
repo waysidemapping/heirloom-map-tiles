@@ -31,9 +31,8 @@ AS $$
         FROM way_relation_combined
         WHERE way_geom && %2$L
           AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_extent >= %4$L
           AND relation_tags @> 'type => route'
-          AND relation_tags ? 'route'
+          AND relation_extent >= %4$L
       ),
       waterways AS (
         SELECT
@@ -182,9 +181,8 @@ AS $$
         FROM way_relation_combined
         WHERE way_geom && %2$L
           AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_extent >= %4$L
           AND relation_tags @> 'type => route'
-          AND relation_tags ? 'route'
+          AND relation_extent >= %4$L
       ),
       waterways AS (
         SELECT

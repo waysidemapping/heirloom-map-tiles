@@ -8,6 +8,6 @@
         "sprites": "spreet --unique --minify-index-file style/sprites/svg style/sprites/demo && spreet --retina --unique --minify-index-file style/sprites/svg style/sprites/demo@2x"
     },
     "devDependencies": {
-        "maplibre-gl": "~5.8.0"
+        "maplibre-gl": "~5.14.0"
     }
 }

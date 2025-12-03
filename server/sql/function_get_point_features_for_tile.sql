@@ -143,7 +143,7 @@ AS $$
         WHERE label_point_z26_x BETWEEN %8$L AND %9$L
             AND label_point_z26_y BETWEEN %10$L AND %11$L
           AND (
-            (tags @> 'type => route' AND tags ? 'route')
+            tags @> 'type => route'
             OR tags @> 'type => waterway'
           )
           AND extent > %6$L
@@ -296,7 +296,7 @@ AS $$
           AND label_point_z26_y BETWEEN %10$L AND %11$L
           AND extent BETWEEN %6$L AND %7$L
           AND (
-            (tags @> 'type => route' AND tags ? 'route')
+            tags @> 'type => route'
             OR tags @> 'type => waterway'
           )
           AND %1$L >= 4

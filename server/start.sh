@@ -280,17 +280,17 @@ else
         "$PLANET_FILE"
 
     echo "Running post-import SQL queries..."
-    sudo -u "$DB_USER" psql "$DB_NAME" --file="sql/post_init_or_update/area_relation.sql" &
-    sudo -u "$DB_USER" psql "$DB_NAME" --file="sql/post_init_or_update/non_area_relation.sql" &
-    sudo -u "$DB_USER" psql "$DB_NAME" --file="sql/post_init_or_update/way_no_explicit_line.sql" &
+    sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init_or_update/area_relation.sql" &
+    sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init_or_update/non_area_relation.sql" &
+    sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init_or_update/way_no_explicit_line.sql" &
     wait
 
-    sudo -u "$DB_USER" psql "$DB_NAME" --file="sql/post_init/create_materialized_views.sql"
+    sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init/create_materialized_views.sql"
 fi
 
 # Reinstall functions every time in case something changed.
 # In order to pass validation, we have to do this after the database has been populated 
-/bin/bash update_sql_functions.sh
+/bin/bash "$APP_DIR/update_sql_functions.sh"
 
 # start tileserver
 sudo -u "$DB_USER" -- /usr/local/bin/martin --config "$MARTIN_CONFIG_FILE"

@@ -273,7 +273,7 @@ else
         --create \
         --slim \
         --extra-attributes \
-        "$NODE_CACHE_PARAMS" \
+        $NODE_CACHE_PARAMS \
         --prefix="$TABLE_PREFIX" \
         --output=flex \
         --style="$LUA_STYLE_FILE" \

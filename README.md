@@ -153,3 +153,7 @@ Minutely tiles can't be cached for very long, so lightning-fast renders are crit
 ### What's with the name?
 
 An [heirloom](https://en.wikipedia.org/wiki/Heirloom_plant) (pronounced *AIR-loom* in the US) is a rare varietal of fruit, vegetable, etc. that is typically homegrown rather than produced for agribusiness. Likewise, Heirloom tiles are homegrown map tiles meant for specialty use rather than mass-market deployment.
+
+## License
+
+This repository is distributed under the [MIT license](https://github.com/waysidemapping/heirloom-map-tiles/blob/main/LICENSE). Dependencies are subject to their respective licenses.

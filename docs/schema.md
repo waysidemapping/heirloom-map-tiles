@@ -54,8 +54,8 @@ Features in the `area` layer correspond to:
 Features in the `area` layer are filtered as so:
 
 * Areas too small to be seen when rendered in a tile are always discarded.
-* At z < 12, area geometries are aggregated together based on the keys listed in [area_key_low_zoom.txt](server/schema_data/area_key_low_zoom.txt).
-* At z >= 12, each area geometry corresponds to an OSM feature. Keys are filtered to those listed in [area_key.txt](server/schema_data/area_key.txt) and those beginning with prefixes listed in [area_key_prefix.txt](server/schema_data/area_key_prefix.txt).
+* At z < 12, area geometries are aggregated together based on the keys listed in [area_key_low_zoom.txt](/server/schema_data/area_key_low_zoom.txt).
+* At z >= 12, each area geometry corresponds to an OSM feature. Keys are filtered to those listed in [area_key.txt](/server/schema_data/area_key.txt) and those beginning with prefixes listed in [area_key_prefix.txt](/server/schema_data/area_key_prefix.txt).
 
 ### `line`
 
@@ -70,8 +70,8 @@ Features in the `line` layer correspond to:
 Features in the `line` layer are filtered as so:
 
 * Lines too small to be seen when rendered in a tile are generally discarded. The threshold is very high to avoid tiny gaps in roads, rivers, etc.
-* At z < 12, only lines that are part of long relations are included. Line geometries are aggregated together based on relation membership as well as the keys listed in [line_key_low_zoom.txt](server/schema_data/line_key_low_zoom.txt).
-* At z >= 12, each line geometry corresponds to an OSM feature. Keys are filtered to those listed in [line_key.txt](server/schema_data/line_key.txt) and those beginning with prefixes listed in [line_key_prefix.txt](server/schema_data/line_key_prefix.txt).
+* At z < 12, only lines that are part of long relations are included. Line geometries are aggregated together based on relation membership as well as the keys listed in [line_key_low_zoom.txt](/server/schema_data/line_key_low_zoom.txt).
+* At z >= 12, each line geometry corresponds to an OSM feature. Keys are filtered to those listed in [line_key.txt](/server/schema_data/line_key.txt) and those beginning with prefixes listed in [line_key_prefix.txt](/server/schema_data/line_key_prefix.txt).
 
 ### `point`
 
@@ -90,7 +90,7 @@ Features in the `point` layer are filtered as so:
 * Node features, and points representing areas too small to be visible in the tile, are filtered by zoom:
   * At z < 12, only features with specific notable tags are included.
   * At z >= 12, all features are included unless there are too many in the region around the tile. Features tagged with `name` or `wikidata` tag are considered more notable than those without and are included first.
-* For all points features at all zoom levels, keys are filtered to those listed in [point_key.txt](server/schema_data/point_key.txt) and those beginning with prefixes listed in [point_key_prefix.txt](server/schema_data/point_key_prefix.txt).
+* For all points features at all zoom levels, keys are filtered to those listed in [point_key.txt](/server/schema_data/point_key.txt) and those beginning with prefixes listed in [point_key_prefix.txt](/server/schema_data/point_key_prefix.txt).
 
 ### `relation`
 

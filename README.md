@@ -53,7 +53,7 @@ The Beefsteak tile schema is tuned to be as close to OpenStreetMap as possible w
 - Features may be filtered or aggregated depending on zoom level.
 - Coastlines and boundaries get special treatment.
 
-For detailed info, see [schema.md](docs/schema.md).
+For detailed info, see [schema.md](/docs/schema.md).
 
 ### MapLibre styling
 
@@ -153,7 +153,7 @@ Minutely tiles can't be cached for very long, so lightning-fast renders are crit
 
 ## 🚴 Deploying Beefsteak
 
-For detailed instructions on how to deploy your own Beefsteak server, see [deploying.md](docs/deploying.md).
+For detailed instructions on how to deploy your own Beefsteak server, see [deploying.md](/docs/deploying.md).
 
 ## ℹ️ FAQ
 
@@ -163,4 +163,4 @@ A [beefsteak tomato](https://en.wikipedia.org/wiki/Beefsteak_tomato) (beef tomat
 
 ## License
 
-This repository is distributed under the [MIT license](https://github.com/waysidemapping/beefsteak-map-tiles/blob/main/LICENSE). Dependencies are subject to their respective licenses.
+This repository is distributed under the [MIT license](/LICENSE). Dependencies are subject to their respective licenses.

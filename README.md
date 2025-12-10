@@ -6,7 +6,7 @@ Beefsteak is a special cultivar of [OpenStreetMap](https://www.openstreetmap.org
 
 ### 🍝 Features
 
-- 🤌 **Pure OpenStreetMap**: OSM has all the vector data you need to make a great map. Patching in external datasets such as Natural Earth or Wikidata makes the map harder to deploy and more difficult to edit, so Beefsteak doesn't bother.
+- 🤌 **Pure OpenStreetMap**: OSM has all the vector data you need to make a great map. Patching in external datasets makes the map harder to deploy and more difficult to edit, so Beefsteak doesn't bother.
 - 🦆 **Tags are tags**: OSM mappers love the richness of OSM tagging and typically prefer to work with it directly. Beefsteak does not make opinionated tag transforms or filter tag values, so new and niche values are supported automatically.
 - 🔂 **Minutely updates**: Seeing your edits appear on the map right away makes mapping more fun. It also surfaces potential issues quickly before they are propagated elsewhere. Beefsteak is able to pull in minutely diffs from the mainline OSM servers to keep the tiles farm fresh.
 - 🌾 **High-zoom tiles**: Other tilesets render only low- and mid-zoom tiles, relying on "overzoom" to show detailed areas. Beefsteak instead renders high-zoom tiles so that indoor floorplans, building parts, highway areas, and other micromapped features can be included without ballooning individual tile sizes.
@@ -30,6 +30,17 @@ Beefsteak map tiles aren't for everyone. If you don't need Beefsteak's power and
 - [Shortbread](https://shortbread-tiles.org/): If you're looking for a lean, general-purpose tile schema supported on openstreetmap.org, try Shortbread. Shortbread also supports minutely updates.
 - [Planetiler](https://github.com/onthegomap/planetiler) or [Tippecanoe](https://github.com/felt/tippecanoe): If you want to roll your own static vector tiles.
 
+## 🍔 Stack
+
+Beefsteak strives to have minimal dependencies. It is built atop the following open source projects:
+
+- [Martin](https://github.com/maplibre/martin): vector map tile server
+- [osm2pgsql](https://github.com/osm2pgsql-dev/osm2pgsql): OSM data importer for Postgres
+- [PostGIS](https://postgis.net): geospatial extension for Postgres
+- [OpenStreetMap](https://www.openstreetmap.org/about/) (OSM): free, collaborative, global geospatial database
+
+That's about it. You won't find shims such as Natural Earth, Wikidata, or Microsoft Buildings.
+
 ## 🍴 Using Beefsteak tiles
 
 ### Schema
@@ -42,7 +53,7 @@ The Beefsteak tile schema is tuned to be as close to OpenStreetMap as possible w
 - Features may be filtered or aggregated depending on zoom level.
 - Coastlines and boundaries get special treatment.
 
-For detailed info, see [SCHEMA.md](SCHEMA.md).
+For detailed info, see [schema.md](docs/schema.md).
 
 ### MapLibre styling
 
@@ -100,15 +111,6 @@ Using these techniques, you can create expressive, detailed maps with the many O
 
 ## 🧑‍🍳 Developing Beefsteak
 
-### Stack
-
-Beefsteak strives to have minimal dependencies. It is built atop the following open source projects:
-
-- [Martin](https://github.com/maplibre/martin): vector maptile server
-- [osm2pgsql](https://github.com/osm2pgsql-dev/osm2pgsql): OSM data importer for Postgres
-- [PostGIS](https://postgis.net): geospatial extension for Postgres
-- [OpenStreetMap](https://www.openstreetmap.org/about/) (OSM): free, collaborative, global geospatial database 
-
 ### Running locally
 
 For convenience, a Dockerfile is provided that will run the server in an Ubuntu environment. Deploying the stack via Docker is intended for development only and has not been tested in production.
@@ -149,6 +151,9 @@ docker exec -i beefsteak-dev-container sudo -u postgres psql -U postgres -d osm 
 
 Minutely tiles can't be cached for very long, so lightning-fast renders are critical. Beefsteak has a highly optimized SQL query that goes without luxuries like recursion, `UNION`, `ST_SimplifyPreserveTopology`, and `ST_Union`.
 
+## 🚴 Deploying Beefsteak
+
+For detailed instructions on how to deploy your own Beefsteak server, see [deploying.md](docs/deploying.md).
 
 ## ℹ️ FAQ
 

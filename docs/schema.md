@@ -101,7 +101,7 @@ Features in the `relation` layer correspond to:
 
 ## Cheat sheet
 
-This table show top-level tag supportin Beefsteak tiles. A checkmark (✔︎) means that if an OSM feature has a tag with the given key, that feature is eligible for inclusion in the given layer. Actual inclusion depends on geometry, zoom level, etc.
+This table show top-level tag support in Beefsteak tiles. A checkmark (✔︎) means that if an OSM feature has a tag with the given key, that feature is eligible for inclusion in the given layer. Actual inclusion depends on geometry, zoom level, etc.
 
 | OSM key | `point` layer | `line` layer | `area` layer | `relation` layer | Closed way implies area | Irregularities |
 |---|---|---|---|---|---|---|

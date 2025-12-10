@@ -48,7 +48,7 @@ POINT_SQL_FUNCTION=${POINT_SQL_FUNCTION//\{\{POINT_KEY_PREFIX_LIKE_STATEMENTS\}\
 
 # relation layer
 
-ROOT_SQL_FUNCTION=$(<"$APP_DIR/sql/function_get_heirloom_tile.sql")
+ROOT_SQL_FUNCTION=$(<"$APP_DIR/sql/function_get_beefsteak_tile.sql")
 
 RELATION_KEY_LIST=$(grep -v '^$' "$APP_DIR/schema_data/relation_key.txt" | sed "s/.*/'&'/" | paste -sd, -)
 ROOT_SQL_FUNCTION=${ROOT_SQL_FUNCTION//\{\{RELATION_KEY_LIST\}\}/$RELATION_KEY_LIST}

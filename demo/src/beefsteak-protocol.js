@@ -2,8 +2,8 @@ import Pbf from 'https://unpkg.com/pbf@4.0.1/index.js';
 import {VectorTile} from 'https://esm.run/@mapbox/vector-tile@2.0.3/index.js';
 import tileToProtobuf from 'https://esm.run/vt-pbf@3.1.3/index.js';
 
-export async function heirloomProtocolFunction(request) {
-  const url = request.url.replace('heirloom://', '');
+export async function beefsteakProtocolFunction(request) {
+  const url = request.url.replace('beefsteak://', '');
   return fetch(url)
     .then((response) => response.arrayBuffer())
     .then((buffer) => new VectorTile(new Pbf(buffer)))

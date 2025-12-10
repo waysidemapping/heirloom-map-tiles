@@ -1,8 +1,8 @@
 --
 -- © 2025 Quincy Morgan
--- Licensed MIT: https://github.com/waysidemapping/heirloom-map-tiles/blob/main/LICENSE.md
+-- Licensed MIT: https://github.com/waysidemapping/beefsteak-map-tiles/blob/main/LICENSE.md
 --
-CREATE OR REPLACE FUNCTION function_get_heirloom_tile(z integer, x integer, y integer)
+CREATE OR REPLACE FUNCTION function_get_beefsteak_tile(z integer, x integer, y integer)
 RETURNS bytea
 LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
 AS $function_body$
@@ -118,7 +118,7 @@ AS $function_body$
 $function_body$
 SET plan_cache_mode = force_custom_plan;
 
-COMMENT ON FUNCTION function_get_heirloom_tile IS
+COMMENT ON FUNCTION function_get_beefsteak_tile IS
 $tilejson$
 {
   "description": "Server-farm-to-table OpenStreetMap tiles",

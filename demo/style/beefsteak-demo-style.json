@@ -3,9 +3,9 @@
     "name": "Rusic Tiles Demo Style",
     "glyphs": "https://font.americanamap.org/{fontstack}/{range}.pbf",
     "sources": {
-       "heirloom": {
+       "beefsteak": {
             "type": "vector",
-            "url": "http://localhost:3000/heirloom"
+            "url": "http://localhost:3000/beefsteak"
         }
     },
     "sprite": "http://localhost:3366/style/sprites/demo",
@@ -19,7 +19,7 @@
         },
         {
             "id": "area",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "area",
             "type": "fill",
             "filter": ["!", ["any", ["has", "building"], ["==", ["get", "boundary"], "administrative"]]],
@@ -35,7 +35,7 @@
         },
         {
             "id": "unspecified-line",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["!",[
@@ -56,7 +56,7 @@
         },
         {
             "id": "power-line",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "power"],
@@ -67,7 +67,7 @@
         },
         {
             "id": "barrier-line",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "barrier"],
@@ -78,7 +78,7 @@
         },
         {
             "id": "waterway",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "waterway"],
@@ -89,7 +89,7 @@
         },
         {
             "id": "railway",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "railway"],
@@ -100,7 +100,7 @@
         },
         {
             "id": "highway",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "highway"],
@@ -115,7 +115,7 @@
         },
         {
             "id": "route",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["has", "route"],
@@ -126,7 +126,7 @@
         },
         {
             "id": "building",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "area",
             "type": "fill",
             "filter": ["has", "building"],
@@ -137,7 +137,7 @@
         },
         {
             "id": "boundary",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "filter": ["in", "┃administrative┃", ["get", "r.boundary"]],
@@ -148,7 +148,7 @@
         },
         {
             "id": "boundary-label",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "area",
             "type": "symbol",
             "filter": ["==", ["get", "boundary"], "administrative"],
@@ -173,7 +173,7 @@
         },
         {
             "id": "line-label",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "symbol",
             "layout": {
@@ -198,7 +198,7 @@
         },
         {
             "id": "area-target",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "area",
             "type": "fill",
             "paint": {
@@ -207,7 +207,7 @@
         },
         {
             "id": "line-target",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "line",
             "type": "line",
             "paint": {
@@ -217,7 +217,7 @@
         },
         {
             "id": "point-label",
-            "source": "heirloom",
+            "source": "beefsteak",
             "source-layer": "point",
             "type": "symbol",
             "layout": {

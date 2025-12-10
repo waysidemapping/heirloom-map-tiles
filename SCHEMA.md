@@ -1,4 +1,4 @@
-# Heirloom map tile schema
+# Beefsteak map tile schema
 
 *This schema is in active development and is not yet versioned. Users should expect that changes may occur at any time without notice. This schema is never expected to become fully stable since tagging changes are inherent to OpenStreetMap.*
 
@@ -6,17 +6,17 @@
 
 ### Top-level tags
 
-OpenStreetMap has the concept of [top-level tags](https://wiki.openstreetmap.org/wiki/Top-level_tag) which define the primary "type" of each feature. Heirloom relies heavily on top-level tags to make blanket assumptions about features without needing to worry too much about specific tag values. For example, only features with specific top-level tags are included in the tiles.
+OpenStreetMap has the concept of [top-level tags](https://wiki.openstreetmap.org/wiki/Top-level_tag) which define the primary "type" of each feature. Beefsteak relies heavily on top-level tags to make blanket assumptions about features without needing to worry too much about specific tag values. For example, only features with specific top-level tags are included in the tiles.
 
 Certain top-level keys such as `emergency` and `indoor` are used as attribute tags by some mappers, like `emergency=designated` or `indoor=yes`. For performance and consistency, features with these tag values are NOT ignored as top-level tags, possibly resulting in unexpected behavior.
 
 ### Troll tags
 
-For performance and consistency, tag values like `no` and `unknown` (e.g. `building=no` or `shop=unknown`) are NOT ignored anywhere in Heirloom. These are sometimes called [troll tags](https://wiki.openstreetmap.org/wiki/Trolltag) in OSM since they may be technically accurate but often break apps. As such, these tags can be deleted from OSM if they cause issues in Heirloom tiles.
+For performance and consistency, tag values like `no` and `unknown` (e.g. `building=no` or `shop=unknown`) are NOT ignored anywhere in Beefsteak. These are sometimes called [troll tags](https://wiki.openstreetmap.org/wiki/Trolltag) in OSM since they may be technically accurate but often break apps. As such, these tags can be deleted from OSM if they cause issues in Beefsteak tiles.
 
 ### Areas as ways
 
-OpenStreetMap does not have distinct "line" and "area" entities, only "ways". Open ways can be assumed to be lines, but closed ways (where the first and last nodes are the same) are ambiguous. Each data consumer, including Heirloom, has to figure out how to deal with closed ways based on tagging. Heirloom takes a very strict approach.
+OpenStreetMap does not have distinct "line" and "area" entities, only "ways". Open ways can be assumed to be lines, but closed ways (where the first and last nodes are the same) are ambiguous. Each data consumer, including Beefsteak, has to figure out how to deal with closed ways based on tagging. Beefsteak takes a very strict approach.
 
 * "Explicit" lines
   * Open ways regardless of tagging
@@ -27,11 +27,11 @@ OpenStreetMap does not have distinct "line" and "area" entities, only "ways". Op
 
 ### Low zooms vs. high zooms
 
-Zoom level 12 is a magic threshold in Heirloom tiles. At z < 12, most features are aggregated and highly filtered for berevity. At z >= 12, most features correspond directly to OSM entities and contain a large number of attribute tags.
+Zoom level 12 is a magic threshold in Beefsteak tiles. At z < 12, most features are aggregated and highly filtered for berevity. At z >= 12, most features correspond directly to OSM entities and contain a large number of attribute tags.
 
 ### Aggregation, filtering, and simplification
 
-The features in Heirloom tiles are intended to match the original OpenStreetMap data as closely as possible. However, a certain loss of resolution is required in ordered to limit the size of the tiles. This is tuned toward cartography and is intended to have a limited impact on mapmakers. For example, line and area geometries are simplified with a tolerance matching the resolution of the tile, meaning the results should look nearly invisible to the user. This is done without regard to topology.
+The features in Beefsteak tiles are intended to match the original OpenStreetMap data as closely as possible. However, a certain loss of resolution is required in ordered to limit the size of the tiles. This is tuned toward cartography and is intended to have a limited impact on mapmakers. For example, line and area geometries are simplified with a tolerance matching the resolution of the tile, meaning the results should look nearly invisible to the user. This is done without regard to topology.
 
 ### Coastlines
 
@@ -39,7 +39,7 @@ In OpenStreetMap, coastline features model the boundary between land and ocean. 
 
 ## Layers
 
-Heirloom tiles have just four layers: three geometry layers (`point`, `line`, and `area`) and one meta layer (`relation`). Note that these do not correspond exactly to OSM entity types, and that the same feature may appear in multiple layers. Actual inclusion depends on tagging, zoom level, etc.
+Beefsteak tiles have just four layers: three geometry layers (`point`, `line`, and `area`) and one meta layer (`relation`). Note that these do not correspond exactly to OSM entity types, and that the same feature may appear in multiple layers. Actual inclusion depends on tagging, zoom level, etc.
 
 ### `area`
 
@@ -101,7 +101,7 @@ Features in the `relation` layer correspond to:
 
 ## Cheat sheet
 
-This table show top-level tag supportin Heirloom tiles. A checkmark (✔︎) means that if an OSM feature has a tag with the given key, that feature is eligible for inclusion in the given layer. Actual inclusion depends on geometry, zoom level, etc.
+This table show top-level tag supportin Beefsteak tiles. A checkmark (✔︎) means that if an OSM feature has a tag with the given key, that feature is eligible for inclusion in the given layer. Actual inclusion depends on geometry, zoom level, etc.
 
 | OSM key | `point` layer | `line` layer | `area` layer | `relation` layer | Closed way implies area | Irregularities |
 |---|---|---|---|---|---|---|

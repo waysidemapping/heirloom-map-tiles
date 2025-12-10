@@ -50,12 +50,12 @@ postgres:
 
   # Associative arrays of function sources
   functions:
-    heirloom:
+    beefsteak:
       # Schema name (required)
       schema: public
 
       # Function name (required)
-      function: function_get_heirloom_tile
+      function: function_get_beefsteak_tile
 
       # An integer specifying the minimum zoom level
       minzoom: 0

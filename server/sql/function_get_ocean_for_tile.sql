@@ -1,6 +1,6 @@
 --
 -- © 2025 Quincy Morgan
--- Licensed MIT: https://github.com/waysidemapping/heirloom-map-tiles/blob/main/LICENSE.md
+-- Licensed MIT: https://github.com/waysidemapping/beefsteak-map-tiles/blob/main/LICENSE.md
 --
 -- # function_get_ocean_for_tile
 --

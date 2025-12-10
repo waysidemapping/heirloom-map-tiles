@@ -1,21 +1,21 @@
-import {heirloomProtocolFunction} from './heirloom-protocol.js';
+import {beefsteakProtocolFunction} from './beefsteak-protocol.js';
 
 var map;
 
 window.addEventListener('load', function () {
   map = new maplibregl.Map({
     container: 'map',
-    style: '/style/heirloom-demo-style.json',
+    style: '/style/beefsteak-demo-style.json',
     hash: 'map',
     minZoom: 0,
     center: [0, 0],
     zoom: 5
   });
 
-  maplibregl.addProtocol('heirloom', heirloomProtocolFunction);
+  maplibregl.addProtocol('beefsteak', beefsteakProtocolFunction);
   map.setTransformRequest((url, resourceType) => {
       if (url.startsWith('http://localhost:3000/') && resourceType === 'Tile') {
-          return { url: 'heirloom://' + url };
+          return { url: 'beefsteak://' + url };
       }
       return undefined;
   });

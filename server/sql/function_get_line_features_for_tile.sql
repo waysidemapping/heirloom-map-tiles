@@ -1,6 +1,6 @@
 --
 -- © 2025 Quincy Morgan
--- Licensed MIT: https://github.com/waysidemapping/heirloom-map-tiles/blob/main/LICENSE.md
+-- Licensed MIT: https://github.com/waysidemapping/beefsteak-map-tiles/blob/main/LICENSE.md
 --
 CREATE OR REPLACE FUNCTION function_get_line_features_for_tile(z integer, x integer, y integer)
 RETURNS TABLE(_id int8, _tags jsonb, _geom geometry, _relation_ids int8[])

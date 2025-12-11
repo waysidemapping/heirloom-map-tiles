@@ -143,6 +143,9 @@ if command -v psql > /dev/null; then
 else
     echo "PostgreSQL is not installed. Proceeding with installation..."
 
+    # delete any possible stale postgres data
+    rm -rf "$PG_DATA_DIR"
+
     sudo apt update
     sudo apt install -y postgresql-common
 

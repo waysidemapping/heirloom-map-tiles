@@ -34,7 +34,7 @@ Beefsteak map tiles aren't for everyone. If you don't need Beefsteak's power and
 
 Beefsteak strives to have minimal dependencies. It is built atop the following open source projects:
 
-- [Martin](https://github.com/maplibre/martin): vector map tile server
+- [Martin](https://github.com/maplibre/martin): vector map tileserver
 - [osm2pgsql](https://github.com/osm2pgsql-dev/osm2pgsql): OSM data importer for Postgres
 - [PostGIS](https://postgis.net): geospatial extension for Postgres
 - [OpenStreetMap](https://www.openstreetmap.org/about/) (OSM): free, collaborative, global geospatial database

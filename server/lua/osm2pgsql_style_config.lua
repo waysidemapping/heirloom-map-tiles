@@ -225,7 +225,7 @@ function format_bbox(min_x, min_y, max_x, max_y)
     return 'POLYGON(('.. tostring(min_x) .. ' '.. tostring(min_y) .. ', '.. tostring(min_x) .. ' '.. tostring(max_y) .. ', '.. tostring(max_x) .. ' '.. tostring(max_y) .. ', '.. tostring(max_x) .. ' '.. tostring(min_y) .. ', '.. tostring(min_x) .. ' '.. tostring(min_y) .. '))'
 end
 
--- runs only on tagged nodes or nodes specified by `select_relation_members`
+-- Runs only on tagged nodes or nodes specified by `select_relation_members`
 function osm2pgsql.process_node(object)
     local geom = object:as_point():transform(3857)
     local z26_x, z26_y = z26_tile(geom:get_bbox())
@@ -237,7 +237,7 @@ function osm2pgsql.process_node(object)
     })
 end
 
--- runs only on tagged ways or ways specified by `select_relation_members`
+-- Runs only on tagged ways or ways specified by `select_relation_members`
 function osm2pgsql.process_way(object)
     local is_explicit_line = not object.is_closed or object.tags.area == 'no'
     local is_explicit_area = object.is_closed and (object.tags.area == 'yes' or object.tags.building ~= nil)
@@ -281,14 +281,19 @@ function osm2pgsql.process_way(object)
         })
     end
 end
--- relation member may be untagged and but we still want to include them
+
+-- Runs only on untagged ways
 function osm2pgsql.process_untagged_way(object)
+    -- Relation member ways might be untagged but we still want to include the somewhere.
+    -- This will also include untagged ways that are not part of relations, but these
+    -- are considered data errors and mappers will eventually delete them from OSM
+    -- or add descriptive tags to them
     untagged_way_table:insert({
         geom = object:as_linestring():transform(3857)
     })
 end
 
--- only runs on tagged relations
+-- Runs only on tagged relations
 function osm2pgsql.process_relation(object)
     local relType = object.tags.type
 

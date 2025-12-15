@@ -77,8 +77,6 @@ AS $$
           OR tags @> 'place => ocean'
           OR tags @> 'place => sea'
           OR tags @> 'place => country'
-          OR tags @> 'place => state'
-          OR tags @> 'place => province'
         ) OR (
           (
             tags @> 'place => city'
@@ -217,8 +215,6 @@ AS $$
           OR tags @> 'place => ocean'
           OR tags @> 'place => sea'
           OR tags @> 'place => country'
-          OR tags @> 'place => state'
-          OR tags @> 'place => province'
           OR tags @> 'place => city'
           OR tags @> 'place => town'
           OR tags @> 'place => village'

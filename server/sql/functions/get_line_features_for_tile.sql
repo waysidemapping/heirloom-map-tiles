@@ -18,7 +18,9 @@ AS $$
     min_way_extent := env_width / 1024.0;
     min_rel_extent := min_way_extent * 192;
     simplify_tolerance := min_way_extent * 0.75;
-    IF z < 12 THEN
+    IF z = 0 THEN
+      RETURN;
+    ELSIF z < 12 THEN
       RETURN QUERY EXECUTE FORMAT($f$
       WITH
       way AS (

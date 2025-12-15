@@ -21,51 +21,77 @@ AS $$
     IF z < 12 THEN
       RETURN QUERY EXECUTE FORMAT($f$
       WITH
+      way AS (
+          SELECT id, ''::hstore AS tags, geom
+          FROM untagged_way
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_explicit_area
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_explicit_line
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_no_explicit_geometry_type
+      ),
+      way_tagged_non_area AS (
+          SELECT id, tags, geom
+          FROM way_explicit_line
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_no_explicit_geometry_type
+      ),
       routes AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_tags @> 'type => route'
-          AND relation_extent >= %4$L
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        FROM way_tagged_non_area w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
+          AND r.tags @> 'type => route'
+          AND r.extent >= %4$L
       ),
       waterways AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND member_role = 'main_stream'
-          AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_tags @> 'type => waterway'
-          AND relation_extent >= %4$L
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        -- pretty safe to assume that all main_stream waterway relation segments are open ways
+        FROM way_explicit_line w
+        JOIN way_relation_member rw ON w.id = rw.member_id AND rw.member_role = 'main_stream'
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
+          AND r.tags @> 'type => waterway'
+          AND r.extent >= %4$L
       ),
       admin_boundaries AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND relation_tags @> 'boundary => administrative'
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        FROM way w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND r.tags @> 'boundary => administrative'
           AND (
-            relation_tags @> 'admin_level => 1'
-            OR relation_tags @> 'admin_level => 2'
-            OR relation_tags @> 'admin_level => 3'
-            OR relation_tags @> 'admin_level => 4'
-            OR relation_tags @> 'admin_level => 5'
+            r.tags @> 'admin_level => 1'
+            OR r.tags @> 'admin_level => 2'
+            OR r.tags @> 'admin_level => 3'
+            OR r.tags @> 'admin_level => 4'
+            OR r.tags @> 'admin_level => 5'
             OR (
-              %1$L >= 6 AND relation_tags @> 'admin_level => 6'
+              %1$L >= 6 AND r.tags @> 'admin_level => 6'
             )
           )
       ),
@@ -176,42 +202,69 @@ AS $$
           AND %1$L >= 18
         )
       ),
+      way AS (
+          SELECT id, ''::hstore AS tags, geom
+          FROM untagged_way
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_explicit_area
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_explicit_line
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_no_explicit_geometry_type
+      ),
+      way_tagged_non_area AS (
+          SELECT id, tags, geom
+          FROM way_explicit_line
+        UNION ALL
+          SELECT id, tags, geom
+          FROM way_no_explicit_geometry_type
+      ),
       routes AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_tags @> 'type => route'
-          AND relation_extent >= %4$L
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        FROM way_tagged_non_area w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
+          AND r.tags @> 'type => route'
+          AND r.extent >= %4$L
       ),
       waterways AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND way_tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
-          AND relation_tags @> 'type => waterway'
-          AND relation_extent >= %4$L
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        -- pretty safe to assume that all main_stream waterway relation segments are open ways
+        FROM way_explicit_line w
+        JOIN way_relation_member rw ON w.id = rw.member_id AND rw.member_role = 'main_stream'
+        JOIN non_area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND w.tags ?| ARRAY['aerialway', 'aeroway', 'barrier', 'highway', 'man_made', 'natural', 'power', 'railway', 'route', 'telecom', 'waterway']
+          AND r.tags @> 'type => waterway'
+          AND r.extent >= %4$L
       ),
       admin_boundaries AS (
         SELECT
-          way_id AS id,
-          way_tags AS tags,
-          way_geom AS geom,
-          member_role,
-          relation_id
-        FROM way_relation_combined
-        WHERE way_geom && %2$L
-          AND relation_tags @> 'boundary => administrative'
+          w.id AS id,
+          w.tags AS tags,
+          w.geom AS geom,
+          rw.member_role AS member_role,
+          r.id AS relation_id
+        FROM way w
+        JOIN way_relation_member rw ON w.id = rw.member_id
+        JOIN area_relation r ON rw.relation_id = r.id
+        WHERE w.geom && %2$L
+          AND r.tags @> 'boundary => administrative'
       ),
       combined_lines AS (
           SELECT id, tags, geom, NULL::text AS member_role, NULL::int8 AS relation_id

@@ -317,7 +317,6 @@ else
     sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init_or_update/way_no_explicit_geometry_type.sql" &
     sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init_or_update/way_explicit_area.sql" &
     wait
-    sudo -u "$DB_USER" psql "$DB_NAME" --file="$APP_DIR/sql/post_init/create_materialized_views.sql"
 
     # We need to manually do this since we turned off autovacuum for the import
     sudo -u "$DB_USER" psql "$DB_NAME" --command="VACUUM ANALYZE;"

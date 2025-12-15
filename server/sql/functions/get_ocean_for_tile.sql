@@ -425,10 +425,14 @@ AS $$
       UNION ALL
         -- If the tile fully contains at least one island, but doesn't have
         -- any coastline intesecting the edge of the tile, then we need to
-        -- add the tile bounding box as an exterior ring
+        -- add the tile bounding box as an exterior ring.
+        --
+        -- This applies to zoom 0 automatically since all coastlines are assumed to be contained.
         SELECT ST_Boundary(env_geom) AS geom
-        WHERE (SELECT count(geom) FROM coastline_open_segments) = 0
+        WHERE _z = 0 OR (
+          (SELECT count(geom) FROM coastline_open_segments) = 0
           AND (SELECT count(geom) FROM coastline_already_closed_segments LIMIT 1) > 0
+        )
     ),
     -- Turn the closed lines into polygons and collect them into a single multipolygon without
     -- doing any expensive geometry-based processing. This is our finished feature.

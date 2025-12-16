@@ -134,21 +134,14 @@ local non_area_relation_table = osm2pgsql.define_table({
     columns = {
         { column = 'tags', type = 'hstore', not_null = true },
         { column = 'geom', type = 'geometrycollection', proj = '3857' },
-        { column = 'bbox', type = 'text', sql_type = 'GEOMETRY(Polygon, 3857)' },
         { column = 'extent', type = 'real' },
-        { column = 'label_node_id', type = 'int8' },
-        { column = 'label_point', sql_type = 'GEOMETRY(Point, 3857)', create_only = true },
-        { column = 'label_point_z26_x', type = 'int', create_only = true },
-        { column = 'label_point_z26_y', type = 'int', create_only = true }
+        { column = 'label_node_id', type = 'int8' }
     },
     indexes = {
         { column = 'tags', method = 'gin' },
         { column = 'geom', method = 'gist' },
-        { column = 'bbox', method = 'gist' },
         { column = 'extent', method = 'btree' },
-        { column = 'label_node_id', method = 'btree' },
-        { column = 'label_point', method = 'gist' },
-        { column = {'label_point_z26_x', 'label_point_z26_y'}, method = 'btree' }
+        { column = 'label_node_id', method = 'btree' }
     }
 })
 
@@ -215,15 +208,6 @@ end
 --            math.floor((bbox_max_x_3857 + 20037508.3427892) / (40075016.6855784 / 2^26)),
 --            math.floor((20037508.3427892 - bbox_min_y_3857) / (40075016.6855784 / 2^26))
 -- end
-
--- Format the bounding box we get from calling get_bbox() on the parameter
--- in the way needed for the PostgreSQL/PostGIS box2d type.
-function format_bbox(min_x, min_y, max_x, max_y)
-    if min_x == nil then
-        return nil
-    end
-    return 'POLYGON(('.. tostring(min_x) .. ' '.. tostring(min_y) .. ', '.. tostring(min_x) .. ' '.. tostring(max_y) .. ', '.. tostring(max_x) .. ' '.. tostring(max_y) .. ', '.. tostring(max_x) .. ' '.. tostring(min_y) .. ', '.. tostring(min_x) .. ' '.. tostring(min_y) .. '))'
-end
 
 -- Runs only on tagged nodes or nodes specified by `select_relation_members`
 function osm2pgsql.process_node(object)
@@ -337,7 +321,6 @@ function osm2pgsql.process_relation(object)
             non_area_relation_table:insert({
                 tags = object.tags,
                 geom = geom,
-                bbox = format_bbox(min_x, min_y, max_x, max_y),
                 extent = math.sqrt(math.pow(max_x - min_x, 2) + math.pow(max_y - min_y, 2)),
                 label_node_id = label_node_id
             })

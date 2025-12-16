@@ -82,7 +82,6 @@ Features in the `point` layer correspond to:
 * Nodes
 * Closed ways that also appear in the `area` layer, represented at the [`ST_PointOnSurface`](https://postgis.net/docs/ST_PointOnSurface.html)
 * `type=multipolygon` and `type=boundary` relations, represented at the node with the [`label`](https://wiki.openstreetmap.org/wiki/Role:label) role if any, otherwise at the `ST_PointOnSurface`
-* `type=route` and `type=waterway` relations, represented at the location along the relation closest to the centerpoint of the relations's bounding box
 
 Features in the `point` layer are filtered as so:
 

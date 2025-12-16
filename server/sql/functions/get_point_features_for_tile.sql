@@ -144,32 +144,10 @@ AS $$
             AND is_node_or_explicit_area
           )
       ),
-      route_centerpoints AS (
-        SELECT
-          id,
-          -- don't include tags since we're going to infill them on the client 
-          '{}'::jsonb AS tags,
-          label_point AS geom,
-          NULL::real AS area_3857,
-          'r' AS osm_type,
-          ARRAY[id] AS relation_ids
-        FROM non_area_relation
-        WHERE label_point_z26_x BETWEEN %8$L AND %9$L
-            AND label_point_z26_y BETWEEN %10$L AND %11$L
-          AND (
-            tags @> 'type => route'
-            OR tags @> 'type => waterway'
-          )
-          AND extent > %6$L
-          AND extent < %7$L
-          AND %1$L >= 4
-      ),
       all_points AS (
           SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
         UNION ALL
           SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
-        UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
       )
       SELECT
         id,
@@ -318,33 +296,12 @@ AS $$
             AND is_node_or_explicit_area
           )
       ),
-      route_centerpoints AS (
-        SELECT
-          id,
-          -- don't include tags since we're going to infill them on the client 
-          '{}'::jsonb AS tags,
-          label_point AS geom,
-          NULL::real AS area_3857,
-          'r' AS osm_type,
-          ARRAY[id] AS relation_ids
-        FROM non_area_relation
-        WHERE label_point_z26_x BETWEEN %8$L AND %9$L
-          AND label_point_z26_y BETWEEN %10$L AND %11$L
-          AND extent BETWEEN %6$L AND %7$L
-          AND (
-            tags @> 'type => route'
-            OR tags @> 'type => waterway'
-          )
-          AND %1$L >= 4
-      ),
       all_points AS (
           SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM low_zoom_small_points
         UNION ALL
           SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM reduced_small_points
         UNION ALL
           SELECT id, tags::jsonb, geom, area_3857, osm_type, NULL::int8[] AS relation_ids FROM filtered_large_points
-        UNION ALL
-          SELECT id, tags::jsonb, geom, area_3857, osm_type, relation_ids FROM route_centerpoints
       )
       SELECT
         id,

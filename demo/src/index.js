@@ -20,8 +20,6 @@ window.addEventListener('load', async function () {
   const beefsteakEndpoint = styleJson.sources.beefsteak.url;
   const beefsteakEndpointPrefix = /(.*\/\/.*\/)/.exec(beefsteakEndpoint)[1];
 
-  console.log(beefsteakEndpointPrefix);
-
   maplibregl.addProtocol('beefsteak', beefsteakProtocolFunction);
   map.setTransformRequest((url, resourceType) => {
       if (url.startsWith(beefsteakEndpointPrefix) && resourceType === 'Tile') {

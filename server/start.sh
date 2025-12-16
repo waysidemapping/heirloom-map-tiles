@@ -205,7 +205,7 @@ if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'
 else
     echo "Creating user '$DB_USER'..."
     sudo -u postgres createuser "$DB_USER"
-    sudo -u postgres psql "$DB_NAME" --command='ALTER ROLE osmuser SET plan_cache_mode = force_custom_plan;'
+    sudo -u postgres psql --command='ALTER ROLE osmuser SET plan_cache_mode = force_custom_plan;'
 fi
 
 # Setup database

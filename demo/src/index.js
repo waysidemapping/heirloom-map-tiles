@@ -4,19 +4,27 @@ var map;
 
 const sidebar = document.getElementById('sidebar');
 
-window.addEventListener('load', function () {
+window.addEventListener('load', async function () {
+
+  const styleJson = await fetch('/style/beefsteak-demo-style.json').then(response => response.json());
+
   map = new maplibregl.Map({
     container: 'map',
-    style: '/style/beefsteak-demo-style.json',
+    style: styleJson,
     hash: 'map',
     minZoom: 0,
     center: [0, 0],
     zoom: 5
   });
 
+  const beefsteakEndpoint = styleJson.sources.beefsteak.url;
+  const beefsteakEndpointPrefix = /(.*\/\/.*\/)/.exec(beefsteakEndpoint)[1];
+
+  console.log(beefsteakEndpointPrefix);
+
   maplibregl.addProtocol('beefsteak', beefsteakProtocolFunction);
   map.setTransformRequest((url, resourceType) => {
-      if (url.startsWith('http://localhost:3000/') && resourceType === 'Tile') {
+      if (url.startsWith(beefsteakEndpointPrefix) && resourceType === 'Tile') {
           return { url: 'beefsteak://' + url };
       }
       return undefined;

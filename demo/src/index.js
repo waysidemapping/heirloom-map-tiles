@@ -60,7 +60,7 @@ function didMouseMoveMap(e) {
   // Change the cursor style as a UI indicator
   map.getCanvas().style.cursor = entity ? 'pointer' : '';
   
-  processMouseForPopup(e);
+  processMouseForInspector(e);
 }
 
 let osmTypeName = {
@@ -78,16 +78,16 @@ function idToOsmType(id) {
   }
 }
 
-function processMouseForPopup(e) {
+function processMouseForInspector(e) {
 
   let entities = map.queryRenderedFeatures(e.point, queryOpts);
 
-  if (!entities.length && !isPopupLocked) {
+  if (!entities.length && !isInspectorLocked) {
     sidebar.replaceChildren();
     return;
   }
 
-  if (!isPopupLocked) {
+  if (!isInspectorLocked) {
 
     let table = createElement('table')
       .setAttribute('class', 'tag-table')
@@ -154,12 +154,12 @@ function didClickMap(e) {
   let entities = map.queryRenderedFeatures(e.point, queryOpts);
 
   if (entities.length) {
-    isPopupLocked = false;
-    processMouseForPopup(e);
-    isPopupLocked = true;
+    isInspectorLocked = false;
+    processMouseForInspector(e);
+    isInspectorLocked = true;
   } else {
     sidebar.replaceChildren();
-    isPopupLocked = false;
+    isInspectorLocked = false;
   }
 }
 

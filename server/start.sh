@@ -321,7 +321,7 @@ else
     wait
 
     # We need to manually do this since we turned off autovacuum for the import
-    sudo -u "$DB_USER" psql "$DB_NAME" --command="VACUUM ANALYZE;"
+    sudo -u "$DB_USER" psql "$DB_NAME" --command="VACUUM;"
 fi
 
 # Set tileserving params dynamically based on available cores and memory

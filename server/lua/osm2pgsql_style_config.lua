@@ -200,15 +200,6 @@ function z26_tile(x, y)
            math.floor((20037508.3427892 - y) / (40075016.6855784 / 2^26))
 end
 
--- function bbox_z26_tiles(bbox_min_x_3857, bbox_min_y_3857, bbox_max_x_3857, bbox_max_y_3857)
---     -- The return order of min y and max y are intentionally reversed since 3857 has origin at bottom left
---     -- and map tiles have origin at top left, i.e. the min y becomes the max y
---     return math.floor((bbox_min_x_3857 + 20037508.3427892) / (40075016.6855784 / 2^26)),
---            math.floor((20037508.3427892 - bbox_max_y_3857) / (40075016.6855784 / 2^26)),
---            math.floor((bbox_max_x_3857 + 20037508.3427892) / (40075016.6855784 / 2^26)),
---            math.floor((20037508.3427892 - bbox_min_y_3857) / (40075016.6855784 / 2^26))
--- end
-
 -- Runs only on tagged nodes or nodes specified by `select_relation_members`
 function osm2pgsql.process_node(object)
     local geom = object:as_point():transform(3857)

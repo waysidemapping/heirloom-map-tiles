@@ -247,6 +247,20 @@ else
     AUTOVAC_MB=$(( MEM_KB * 25 / 100 / 1024 ))          # 25% RAM
     EFFECTIVE_CACHE_MB=$(( MEM_KB * 75 / 100 / 1024 ))  # 75% RAM
 
+    AVAILABLE_BYTES=$(df --output=avail -B1 "$PG_DATA_DIR" | tail -n1)
+    AVAILABLE_TB=$((AVAILABLE_BYTES / 1024 / 1024 / 1024 / 1024))
+
+    if [ "$AVAILABLE_TB" -ge 1 ]; then
+        MIN_WAL_SIZE_GB=32
+        MAX_WAL_SIZE_GB=128
+    elif [ "$AVAILABLE_TB" -ge 0.5 ]; then
+        MIN_WAL_SIZE_GB=4
+        MAX_WAL_SIZE_GB=16
+    else
+        MIN_WAL_SIZE_GB=1
+        MAX_WAL_SIZE_GB=4
+    fi
+
     declare -A PARAMS=(
         ["shared_buffers"]="${SHARED_BUFFERS_MB}MB"
         ["work_mem"]="64MB"
@@ -257,8 +271,8 @@ else
         ["synchronous_commit"]="off"
         ["full_page_writes"]="off"
         ["checkpoint_timeout"]="60min"
-        ["min_wal_size"]="32GB"
-        ["max_wal_size"]="128GB"
+        ["min_wal_size"]="${MIN_WAL_SIZE_GB}GB"
+        ["max_wal_size"]="${MAX_WAL_SIZE_GB}GB"
         ["checkpoint_completion_target"]="0.9"
         ["max_parallel_workers"]="$MAX_PARALLEL_WORKERS"
         ["max_parallel_workers_per_gather"]="$MAX_PARALLEL_PER_GATHER"
@@ -344,6 +358,12 @@ MAINTENANCE_MB=$(( MEM_KB * 5 / 100 / 1024 ))       # 5% RAM
 AUTOVAC_MB=$(( MEM_KB * 2 / 100 / 1024 ))           # 2% RAM
 EFFECTIVE_CACHE_MB=$(( MEM_KB * 75 / 100 / 1024 ))  # 75% RAM
 
+AVAILABLE_BYTES=$(df --output=avail -B1 "$PG_DATA_DIR" | tail -n1)
+AVAILABLE_TB=$((AVAILABLE_BYTES / 1024 / 1024 / 1024 / 1024))
+
+MIN_WAL_SIZE_GB=4
+MAX_WAL_SIZE_GB=16
+
 declare -A PARAMS=(
     ["shared_buffers"]="${SHARED_BUFFERS_MB}MB"
     ["work_mem"]="64MB"                           
@@ -354,8 +374,8 @@ declare -A PARAMS=(
     ["synchronous_commit"]="on"
     ["full_page_writes"]="on"
     ["checkpoint_timeout"]="15min"
-    ["min_wal_size"]="4GB"
-    ["max_wal_size"]="16GB"
+    ["min_wal_size"]="${MIN_WAL_SIZE_GB}GB"
+    ["max_wal_size"]="${MAX_WAL_SIZE_GB}GB"
     ["checkpoint_completion_target"]="0.9"
     ["max_parallel_workers"]="$MAX_PARALLEL_WORKERS"
     ["max_parallel_workers_per_gather"]="$MAX_PARALLEL_PER_GATHER"

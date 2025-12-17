@@ -80,4 +80,4 @@ postgres:
       # covered by all zoom levels. The bounds are represented in WGS:84
       # latitude and longitude values, in the order left, bottom, right, top.
       # Values may be integers or floating point numbers.
-      bounds: [ -180.0, -90.0, 180.0, 90.0 ]
+      bounds: [ -180.0, -89.0, 180.0, 89.0 ]

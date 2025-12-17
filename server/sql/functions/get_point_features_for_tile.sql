@@ -12,8 +12,6 @@ AS $$
     min_extent real;
     min_area real;
     max_area real;
-    min_rel_extent real;
-    max_rel_extent real;
     z26_x_min integer;
     z26_x_max integer;
     z26_y_min integer;

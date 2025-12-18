@@ -6,8 +6,10 @@ keep_alive: 75
 # while using 127.0.0.1 limits traffic to internal server connections (like Varnish)
 listen_addresses: '127.0.0.1:3000'
 
-# Set TileJSON URL path prefix. This overrides the default of respecting the X-Rewrite-URL header.
-# Only modifies the JSON (TileJSON) returned, martins' API-URLs remain unchanged. If you need to rewrite URLs, please use a reverse proxy.
+# Set TileJSON URL path prefix.
+# This overrides the default of respecting the X-Rewrite-URL header.
+# Only modifies the JSON (TileJSON) returned; Martin's API-URLs remain unchanged.
+# If you need to rewrite URLs, please use a reverse proxy.
 # Must begin with a `/`.
 # Examples: `/`, `/tiles`
 base_path: /
@@ -15,8 +17,28 @@ base_path: /
 # Number of web server workers
 worker_processes: 8
 
-# Amount of memory (in MB) to use for caching tiles [default: 512, 0 to disable]
+# Amount of memory (in MB) to use for caching [default: 512, 0 to disable]
+#
+# This is the total amount of cache we use.
+# By default, this is split up between:
+# - Tiles 50% -> 256 MB
+# - Pmtiles' directories 25% -> 128 MB
+# - Fonts 12.5% -> 64 MB
+# - Sprites 12.5% -> 64 MB
+#
+# How the cache works internally is unstable and may change to improve performance/efficiency.
+# For example, we may change the split between sources to improve efficiency.
+#
+# Specify each cache size individually for finer cache size control:
+# - Tiles: `tile_cache_size_mb`
+# - Pmtiles: `pmtiles.directory_cache_size_mb`
+# - Fonts: `fonts.cache_size_mb`
+# - Sprites: `sprites.cache_size_mb`
 cache_size_mb: 0
+
+# Allows overriding the size of the tile cache.
+# Defaults to `cache_size_mb` / 2
+tile_cache_size_mb: 0
 
 # If the client accepts multiple compression formats, and the tile source is not pre-compressed, which compression should be used. `gzip` is faster, but `brotli` is smaller, and may be faster with caching.  Default could be different depending on Martin version.
 preferred_encoding: gzip

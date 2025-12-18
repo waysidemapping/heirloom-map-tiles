@@ -6,7 +6,7 @@ BASE_URL="http://127.0.0.1/beefsteak"
 
 max_zoom_level=5
 
-MAX_JOBS=10
+MAX_JOBS=5
 job_count=0
 
 script_start_ms=$(date +%s%3N)

@@ -7,7 +7,6 @@ backend martin {
     .between_bytes_timeout = 300s;
     .connect_timeout = 5s;
     .max_connections = 100;
-    .max_retries = 1;
 }
 
 sub vcl_recv {

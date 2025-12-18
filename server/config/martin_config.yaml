@@ -1,5 +1,5 @@
 # Connection keep alive timeout [default: 75]
-keep_alive: 75
+keep_alive: 5
 
 # The socket address to bind [default: 0.0.0.0:3000]
 # Note: using 0.0.0.0 automatically makes the Martin endpoint accessible to external connections (the Internet),

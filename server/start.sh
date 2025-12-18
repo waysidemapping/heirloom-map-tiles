@@ -35,7 +35,7 @@ VARNISH_DIR="/usr/local/varnish"
 VARNISH_BUILD_DIR="/usr/local/src/varnish"
 VARNISH_CONFIG_FILE="$APP_DIR/config/varnish_config.vcl"
 VARNISH_CACHE_RAM_GB="2"
-VARNISH_WORKING_DIR="/var/lib/varnish"
+VARNISH_WORKING_DIR="/var/lib/varnish/martin"
 
 [[ "$ARCHITECTURE" == "x86_64" || "$ARCHITECTURE" == "aarch64" ]] && echo "Architecture: $ARCHITECTURE" || { echo "Unsupported architecture: $ARCHITECTURE"; exit 1; }
 
@@ -447,6 +447,8 @@ if ! pgrep -x varnishd >/dev/null 2>&1; then
     echo "Starting Varnish..."
     sudo "$VARNISH_DIR/sbin/varnishd" \
         -n "$VARNISH_WORKING_DIR" \
+        -T 127.0.0.1:6082 \
+        -S /usr/local/varnish/etc/secret \
         -a :80 \
         -f "$VARNISH_CONFIG_FILE" \
         -s "malloc,${VARNISH_CACHE_RAM_GB}G"

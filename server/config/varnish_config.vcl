@@ -3,10 +3,16 @@ vcl 4.1;
 backend martin {
     .host = "127.0.0.1";
     .port = "3000";
+    .first_byte_timeout = 300s;
+    .between_bytes_timeout = 300s;
+    .connect_timeout = 5s;
+    .max_connections = 100;
+    .max_retries = 1;
 }
 
 sub vcl_recv {
     if (req.url ~ "^/beefsteak/") {
+        set req.backend_hint = martin;
         
         # Remove query parameters
         set req.url = regsub(req.url, "\?.*$", "");
@@ -34,11 +40,11 @@ sub vcl_backend_response {
             # cache complex tiles for a good long while
             set beresp.ttl = 1d;
             # if martin is overwhelemed then use the cache for even longer
-            set beresp.grace = 1d;
+            set beresp.grace = 7d;
         # match zoom 6-12
         } else if (bereq.url ~ "^/beefsteak/([6-9]|1[0-2])") {
-            set beresp.ttl = 12h;
-            set beresp.grace = 1d;
+            set beresp.ttl = 1h;
+            set beresp.grace = 7d;
         # match all other zooms
         } else {
             set beresp.ttl = 5m;
@@ -47,6 +53,11 @@ sub vcl_backend_response {
         # don't keep cached tiles around much after the grace period
         set beresp.keep = 5m;
         set beresp.http.Cache-Control = "public";
+
+        if (bereq.retries == 0) {
+            # fetch new tile in background
+            set beresp.uncacheable = false;
+        }
     }
 }
 

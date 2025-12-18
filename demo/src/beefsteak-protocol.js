@@ -19,8 +19,6 @@ export async function beefsteakProtocolFunction(request) {
       }
       return {
         layers: Object.entries(tile.layers)
-          // don't include relations layer in the output since we're folding it into the other layers
-          .filter(([layerId, _]) => layerId != 'relation')
           .reduce((acc, [layerId, layer]) => ({
           ...acc,
           [layerId]: {
@@ -28,20 +26,22 @@ export async function beefsteakProtocolFunction(request) {
             feature: (index) => {
               const feature = layer.feature(index);
 
-              if (feature.id % 10 === 3 && Object.keys(feature.properties).length === 0) {
-                // for relations with no properties, attempt to populate with data from the relation layer
+              if (feature.id % 10 === 3) { // relation
+                if (Object.keys(feature.properties).length === 0) {
+                  // for relations with no properties, attempt to populate with data from the relation layer
 
-                const id = Math.floor(feature.id * 0.1);
-                const relation = relationsById[id];
+                  const id = Math.floor(feature.id * 0.1);
+                  const relation = relationsById[id];
 
-                if (relation) {
-                  for (const prop in relation.properties) {
-                    feature.properties[prop] = relation.properties[prop];
+                  if (relation) {
+                    for (const prop in relation.properties) {
+                      feature.properties[prop] = relation.properties[prop];
+                    }
                   }
                 }
 
-              } else {
-                // otherwise, add relation tags based on relation properties given in the format `m.{relation_id}={member_role}`
+              } else { // non-relation
+                // add relation tags based on relation properties given in the format `m.{relation_id}={member_role}`
 
                 const linkedRelations = Object.keys(feature.properties)
                   .filter(key => key.startsWith('m.'))

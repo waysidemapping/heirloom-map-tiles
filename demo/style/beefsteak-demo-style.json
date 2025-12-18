@@ -5,7 +5,7 @@
     "sources": {
        "beefsteak": {
             "type": "vector",
-            "url": "http://localhost:3000/beefsteak"
+            "url": "http://localhost:3001/beefsteak"
         }
     },
     "sprite": "http://localhost:3366/style/sprites/demo",

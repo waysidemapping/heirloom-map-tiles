@@ -3,10 +3,19 @@ vcl 4.1;
 backend martin {
     .host = "127.0.0.1";
     .port = "3000";
-    .first_byte_timeout = 300s;
-    .between_bytes_timeout = 300s;
+    .first_byte_timeout = 600s;
+    .between_bytes_timeout = 600s;
     .connect_timeout = 5s;
     .max_connections = 100;
+}
+
+sub vcl_hash {
+    # Serve the same content for the same endpoint regardless of the host or server address,
+    # e.g. accessing `curl http://127.0.0.1/beefsteak/0/0/0` will properly warm cache for a
+    # public endpoint like `http://tiles.example.com/beefsteak/0/0/0`
+
+    hash_data(req.url);
+    return (lookup);
 }
 
 sub vcl_recv {

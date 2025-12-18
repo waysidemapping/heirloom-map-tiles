@@ -13,8 +13,8 @@ window.addEventListener('load', async function () {
     style: styleJson,
     hash: 'map',
     minZoom: 0,
-    center: [0, 0],
-    zoom: 5
+    center: [-71.5, 41.5],
+    zoom: 10
   });
 
   const beefsteakEndpoint = styleJson.sources.beefsteak.url;

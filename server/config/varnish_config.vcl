@@ -28,35 +28,35 @@ sub vcl_recv {
 }
 
 sub vcl_backend_response {
-    if (bereq.url ~ "^/beefsteak/([0-9]+)/([0-9]+)/([0-9]+)(\\..*)?$") {
+    if (beresp.status >= 200 && beresp.status < 300) {
+        if (bereq.url ~ "^/beefsteak/([0-9]+)/([0-9]+)/([0-9]+)(\\..*)?$") {
 
-        # tiles are already compressed by martin, don't recompress
-        set beresp.do_gzip = false;
+            # tiles are already compressed by martin, don't recompress
+            set beresp.do_gzip = false;
 
-        # set different cache policies depending on the zoom level
-        # match zoom 0-5
-        if (bereq.url ~ "^/beefsteak/[0-5]/") {
-            # cache complex tiles for a good long while
-            set beresp.ttl = 1d;
-            # if martin is overwhelemed then use the cache for even longer
-            set beresp.grace = 7d;
-        # match zoom 6-12
-        } else if (bereq.url ~ "^/beefsteak/([6-9]|1[0-2])") {
-            set beresp.ttl = 1h;
-            set beresp.grace = 7d;
-        # match all other zooms
-        } else {
-            set beresp.ttl = 5m;
-            set beresp.grace = 1h;
+            # set different cache policies depending on the zoom level
+            # match zoom 0-5
+            if (bereq.url ~ "^/beefsteak/[0-5]/") {
+                # cache complex tiles for a good long while
+                set beresp.ttl = 1d;
+                # if martin is overwhelemed then use the cache for even longer
+                set beresp.grace = 7d;
+            # match zoom 6-12
+            } else if (bereq.url ~ "^/beefsteak/([6-9]|1[0-2])") {
+                set beresp.ttl = 1h;
+                set beresp.grace = 7d;
+            # match all other zooms
+            } else {
+                set beresp.ttl = 5m;
+                set beresp.grace = 1h;
+            }
+            # don't keep cached tiles around much after the grace period
+            set beresp.keep = 5m;
+            set beresp.http.Cache-Control = "public";
         }
-        # don't keep cached tiles around much after the grace period
-        set beresp.keep = 5m;
-        set beresp.http.Cache-Control = "public";
-
-        if (bereq.retries == 0) {
-            # fetch new tile in background
-            set beresp.uncacheable = false;
-        }
+    } else {
+        # don't cache error codes or other unexpected results
+        set beresp.uncacheable = true;
     }
 }
 

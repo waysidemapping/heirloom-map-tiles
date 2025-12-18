@@ -11,7 +11,7 @@ PERSISTENT_DIR="/var/lib/app"
 
 PLANET_FILE="$PERSISTENT_DIR/planet-latest.osm.pbf"
 PLANET_URL="https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf"
-# to load an extract, replace the above URL with something like "https://download.geofabrik.de/north-america/us/california-latest.osm.pbf"
+# to load an extract, replace the above URL with something like "https://download.geofabrik.de/north-america/us/rhode-island-latest.osm.pbf"
 
 PG_VERSION="18"
 POSTGIS_MAJOR_VERSION="3"

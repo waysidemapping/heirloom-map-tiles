@@ -6,8 +6,8 @@ BASE_URL="http://127.0.0.1/beefsteak"
 
 max_zoom_level=5
 
-MAX_JOBS=5
-job_count=0
+max_concurrent_jobs=10
+jobs_running=0
 
 script_start_ms=$(date +%s%3N)
 
@@ -36,13 +36,12 @@ for (( z=0; z<=max_zoom_level; z++ )); do
         echo "$z/$x/$y: HTTP ${http_code}, $tile_size bytes, $tile_time_ms ms"
         # write stats to file to aggregate synchronously later
         echo "$url $tile_size $tile_time_ms" >> /tmp/tile_stats.txt
-      ) &
+      ) & # run in the background
 
-      # Run a certain 
-      job_count=$((job_count + 1))
-      if ((job_count >= MAX_JOBS)); then
-        wait
-        job_count=0
+      jobs_running=$((jobs_running + 1))
+      if ((jobs_running >= max_concurrent_jobs)); then
+        wait -n   # wait for ANY background job to finish
+        jobs_running=$((jobs_running - 1))
       fi
 
     done

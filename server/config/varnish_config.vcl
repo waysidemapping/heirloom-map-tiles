@@ -45,9 +45,6 @@ sub vcl_backend_response {
     if (beresp.status >= 200 && beresp.status < 300) {
         if (bereq.url ~ "^/beefsteak/([0-9]+)/([0-9]+)/([0-9]+)(\\..*)?$") {
 
-            # Treat all variants as the same object
-            unset beresp.http.Vary; 
-
             # Always gzip no matter what the client requested (won't double compress content)
             set beresp.do_gzip = true;
 
@@ -70,6 +67,9 @@ sub vcl_backend_response {
             # Don't keep cached tiles around much after the grace period
             set beresp.keep = 5m;
             set beresp.http.Cache-Control = "public";
+
+            # Treat all variants as the same object
+            unset beresp.http.Vary; 
         }
     } else {
         # Don't cache error codes or other unexpected results

@@ -7,6 +7,9 @@ set -euo pipefail
 APP_DIR="$(dirname "$0")"
 
 ARCHITECTURE=$(uname -m)
+NUM_CORES=$(nproc)
+MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+
 PERSISTENT_DIR="/var/lib/app"
 
 PLANET_FILE="$PERSISTENT_DIR/planet-latest.osm.pbf"
@@ -29,6 +32,8 @@ LUA_STYLE_FILE="$APP_DIR/config/osm2pgsql_style_config.lua"
 
 MARTIN_VERSION="0.19.3"
 MARTIN_CONFIG_FILE="$APP_DIR/config/martin_config.yaml"
+MARTIN_WORKERS=$(( NUM_CORES > 1 ? NUM_CORES - 1 : 1 ))
+MARTIN_POOL_SIZE=2
 
 VARNISH_VERSION="8.0.0"
 VARNISH_DIR="/usr/local/varnish"
@@ -39,9 +44,6 @@ VARNISH_CACHE_RAM_GB="2"
 VARNISH_WORKING_DIR="/var/lib/varnish/martin"
 
 [[ "$ARCHITECTURE" == "x86_64" || "$ARCHITECTURE" == "aarch64" ]] && echo "Architecture: $ARCHITECTURE" || { echo "Unsupported architecture: $ARCHITECTURE"; exit 1; }
-
-NUM_CORES=$(nproc)
-MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
 
 # Create linux user matching PG role: needed for pgsql peer authentication 
 if id "$DB_USER" &>/dev/null; then
@@ -254,22 +256,7 @@ if [[ "$TABLES_EXISTING" -gt 0 ]]; then
     echo "osm2pgsql import detected — $TABLES_EXISTING tables found with prefix '${TABLE_PREFIX}_'."
 else
 
-    # Set import params dynamically based on available cores and memory
-    if [ "$NUM_CORES" -ge 32 ]; then
-        MAX_PARALLEL_WORKERS=64
-        MAX_PARALLEL_PER_GATHER=16
-    elif [ "$NUM_CORES" -ge 16 ]; then
-        MAX_PARALLEL_WORKERS=32
-        MAX_PARALLEL_PER_GATHER=8
-    elif [ "$NUM_CORES" -ge 8 ]; then
-        MAX_PARALLEL_WORKERS=16
-        MAX_PARALLEL_PER_GATHER=8
-    else
-        MAX_PARALLEL_WORKERS=$NUM_CORES
-        MAX_PARALLEL_PER_GATHER=$(( NUM_CORES / 2 ))
-        # Ensure at least 1
-        [ "$MAX_PARALLEL_PER_GATHER" -lt 1 ] && MAX_PARALLEL_PER_GATHER=1
-    fi
+    # Set import params dynamically based on available memory
     SHARED_BUFFERS_MB=$(( MEM_KB * 25 / 100 / 1024 ))   # 25% RAM
     MAINTENANCE_MB=$(( MEM_KB * 60 / 100 / 1024 ))      # 60% RAM
     AUTOVAC_MB=$(( MEM_KB * 25 / 100 / 1024 ))          # 25% RAM
@@ -302,8 +289,9 @@ else
         ["min_wal_size"]="${MIN_WAL_SIZE_GB}GB"
         ["max_wal_size"]="${MAX_WAL_SIZE_GB}GB"
         ["checkpoint_completion_target"]="0.9"
-        ["max_parallel_workers"]="$MAX_PARALLEL_WORKERS"
-        ["max_parallel_workers_per_gather"]="$MAX_PARALLEL_PER_GATHER"
+        ["max_connections"]="100"
+        ["max_parallel_workers"]="0"
+        ["max_parallel_workers_per_gather"]="0"
         ["max_wal_senders"]="0"
         ["random_page_cost"]="1.0"
         ["effective_io_concurrency"]="8"
@@ -366,21 +354,7 @@ else
     sudo -u "$DB_USER" psql "$DB_NAME" --command="VACUUM;"
 fi
 
-# Set tileserving params dynamically based on available cores and memory
-if [ "$NUM_CORES" -ge 32 ]; then
-    MAX_PARALLEL_WORKERS=16
-    MAX_PARALLEL_PER_GATHER=4
-elif [ "$NUM_CORES" -ge 16 ]; then
-    MAX_PARALLEL_WORKERS=8
-    MAX_PARALLEL_PER_GATHER=2
-elif [ "$NUM_CORES" -ge 8 ]; then
-    MAX_PARALLEL_WORKERS=4
-    MAX_PARALLEL_PER_GATHER=2
-else
-    MAX_PARALLEL_WORKERS=$(( NUM_CORES - 2 ))
-    [ "$MAX_PARALLEL_WORKERS" -lt 2 ] && MAX_PARALLEL_WORKERS=2
-    MAX_PARALLEL_PER_GATHER=2
-fi
+# Set tileserving params dynamically based on available memory
 SHARED_BUFFERS_MB=$(( MEM_KB * 25 / 100 / 1024 ))   # 25% RAM
 MAINTENANCE_MB=$(( MEM_KB * 5 / 100 / 1024 ))       # 5% RAM
 AUTOVAC_MB=$(( MEM_KB * 2 / 100 / 1024 ))           # 2% RAM
@@ -405,8 +379,9 @@ declare -A PARAMS=(
     ["min_wal_size"]="${MIN_WAL_SIZE_GB}GB"
     ["max_wal_size"]="${MAX_WAL_SIZE_GB}GB"
     ["checkpoint_completion_target"]="0.9"
-    ["max_parallel_workers"]="$MAX_PARALLEL_WORKERS"
-    ["max_parallel_workers_per_gather"]="$MAX_PARALLEL_PER_GATHER"
+    ["max_connections"]="100"
+    ["max_parallel_workers"]="0"
+    ["max_parallel_workers_per_gather"]="0"
     ["max_wal_senders"]="5"
     ["random_page_cost"]="1.0"
     ["effective_io_concurrency"]="128"
@@ -463,4 +438,4 @@ if ! pgrep -x varnishd >/dev/null 2>&1; then
 fi
 
 # start Martin
-sudo -u "$DB_USER" -- /usr/local/bin/martin --config "$MARTIN_CONFIG_FILE"
+sudo -u "$DB_USER" -- /usr/local/bin/martin --config "$MARTIN_CONFIG_FILE" --workers "$MARTIN_WORKERS" --pool-size "$MARTIN_POOL_SIZE"

@@ -15,7 +15,7 @@ listen_addresses: '127.0.0.1:3000'
 base_path: /
 
 # Number of web server workers
-worker_processes: 8
+# worker_processes: 8
 
 # Amount of memory (in MB) to use for caching [default: 512, 0 to disable]
 #
@@ -70,7 +70,7 @@ postgres:
   default_srid: 3857
 
   # Maximum Postgres connections pool size [default: 20]
-  pool_size: 20
+#   pool_size: 4
 
   # Limit the number of geo features per tile.
   #

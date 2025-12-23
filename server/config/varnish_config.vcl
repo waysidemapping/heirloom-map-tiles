@@ -45,9 +45,11 @@ sub vcl_backend_response {
     if (beresp.status >= 200 && beresp.status < 300) {
         if (bereq.url ~ "^/beefsteak/([0-9]+)/([0-9]+)/([0-9]+)(\\..*)?$") {
 
-            # tiles are already compressed by martin, don't recompress
-            set beresp.do_gzip = false;
+            # Treat all variants as the same object
+            unset beresp.http.Vary; 
 
+            # Always gzip no matter what the client requested (won't double compress content)
+            set beresp.do_gzip = true;
 
             # Set different cache policies depending on the zoom level
             # Match zoom 0-6
